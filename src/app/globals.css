@@ -1,26 +1,102 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Design tokens from the Phase 1 work plan ("Palette, sampled from the logo
+ * and old site"). Contrast ratios are listed in the plan; the old button green
+ * #74A84A is intentionally not used (2.8:1 with white text).
+ */
+@theme {
+  --color-pine: #2e5a1c;
+  --color-pine-dark: #234615;
+  --color-olive: #5f6b23;
+  --color-trail: #4e7a2e;
+  --color-trail-dark: #3f6424;
+  --color-boot: #5a2a14;
+  --color-canvas: #f7f3ea;
+  --color-ink: #1f2a1a;
+
+  /* Supporting neutrals */
+  --color-paper: #ffffff;
+  --color-line: #e2dac8;
+  --color-muted: #545e4b;
+  --color-sand: #efe8d8;
+  --color-sky: #e3eef1;
+  --color-alert: #9a2a1a;
+
+  --font-heading: var(--font-jost), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 0.75rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 17px;
+    line-height: 1.5;
+  }
+
+  @media (min-width: 768px) {
+    body {
+      font-size: 16px;
+    }
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
+    color: var(--color-pine);
+    line-height: 1.15;
+    font-weight: 600;
+  }
+
+  a {
+    color: var(--color-olive);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-trail);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Short uppercase labels and buttons, echoing the old site's spaced capitals */
+  .label-caps {
+    font-family: var(--font-heading);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 500;
+  }
+
+  .price {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-ink);
+  }
+
+  /* Horizontal photo strip on the item page: swipe on phones */
+  .snap-strip {
+    scroll-snap-type: x mandatory;
+  }
+  .snap-strip,
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .snap-strip::-webkit-scrollbar,
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .snap-strip > * {
+    scroll-snap-align: center;
+  }
 }
