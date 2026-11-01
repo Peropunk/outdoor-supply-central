@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { ACTIVITIES } from "@/lib/catalog";
 import { requireUser, type Intent } from "@/lib/auth";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { isGoogleSignInEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 async function callbackUrl() {
@@ -16,6 +16,7 @@ async function callbackUrl() {
 
 export async function signInWithGoogle() {
   if (!isSupabaseConfigured) redirect("/welcome");
+  if (!isGoogleSignInEnabled) redirect("/signin");
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
