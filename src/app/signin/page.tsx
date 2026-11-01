@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Card, PreviewNotice, buttonClass } from "@/components/ui";
-import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { isGoogleSignInEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
 import { signInWithGoogle } from "../auth/actions";
 import { EmailLinkForm } from "./EmailLinkForm";
 
@@ -16,16 +16,20 @@ export default function SignInPage() {
       <p className="mt-2 text-center text-muted">One account to buy and sell. No password to remember.</p>
 
       <Card className="mt-8 space-y-5">
-        <form action={signInWithGoogle}>
-          <button type="submit" className={buttonClass("outline", "w-full normal-case tracking-normal")}>
-            <GoogleMark />
-            Continue with Google
-          </button>
-        </form>
+        {isGoogleSignInEnabled && (
+          <>
+            <form action={signInWithGoogle}>
+              <button type="submit" className={buttonClass("outline", "w-full normal-case tracking-normal")}>
+                <GoogleMark />
+                Continue with Google
+              </button>
+            </form>
 
-        <div className="flex items-center gap-3 text-[14px] text-muted">
-          <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
-        </div>
+            <div className="flex items-center gap-3 text-[14px] text-muted">
+              <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
+            </div>
+          </>
+        )}
 
         <EmailLinkForm />
       </Card>

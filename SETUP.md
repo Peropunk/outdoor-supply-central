@@ -49,6 +49,8 @@ on a laptop and taps it on their phone. Both kinds land on `/auth/callback`, so 
 2. Credentials → Create credentials → OAuth client ID → Web application.
    - **Authorized redirect URI:** `https://<project ref>.supabase.co/auth/v1/callback`
 3. Copy the client ID and secret into Supabase → Authentication → Sign In / Providers → **Google**.
+4. Set `NEXT_PUBLIC_GOOGLE_SIGNIN_ENABLED=true` in `.env.local` and in Vercel, then redeploy. Until then the
+   "Continue with Google" button stays hidden.
 
 Email links work without this step.
 
