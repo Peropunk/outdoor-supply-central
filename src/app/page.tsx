@@ -1,69 +1,112 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Camera, QrCode, ShieldCheck, Wallet } from "lucide-react";
+import { CategoryIcon } from "@/components/CategoryIcon";
+import { MountainArt } from "@/components/MountainArt";
+import { SearchBox } from "@/components/SearchBox";
+import { ButtonLink, ListingGrid } from "@/components/ui";
+import { CATEGORIES } from "@/lib/catalog";
+import { countByCategory, getRecentListings } from "@/lib/listings";
 
-export default function Home() {
+const STEPS = [
+  { icon: Camera, title: "List it from your phone", body: "Photos, condition and price in four short steps." },
+  { icon: QrCode, title: "Ship it with a QR code", body: "We email a prepaid USPS label. No printer needed." },
+  { icon: Wallet, title: "Get paid when it ships", body: "Your money moves at USPS's first scan." },
+];
+
+export default async function Home() {
+  const [recent, counts] = await Promise.all([getRecentListings(8), countByCategory()]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <>
+      <section className="relative isolate overflow-hidden">
+        <MountainArt className="absolute inset-0 -z-10 h-full w-full" />
+        <div className="mx-auto max-w-4xl px-4 pt-14 pb-48 text-center sm:pt-20 sm:pb-64">
+          <h1 className="font-heading text-[40px] leading-[1.05] font-semibold tracking-[0.08em] text-pine uppercase sm:text-7xl">
+            Outdoor Supply Central
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="label-caps mt-4 text-[15px] text-ink sm:text-xl">
+            Camping, hiking, fishing &amp; survival gear
           </p>
+          <p className="mx-auto mt-4 max-w-lg text-lg text-ink/80">
+            Used gear from fellow outdoor people, with protected payment and tracked USPS shipping.
+          </p>
+          <div className="mx-auto mt-8 grid max-w-sm gap-3 sm:max-w-md sm:grid-cols-2">
+            <ButtonLink href="/browse">Buy gear</ButtonLink>
+            <ButtonLink href="/sell" variant="secondary">
+              Sell gear
+            </ButtonLink>
+          </div>
+          <div className="mx-auto mt-6 max-w-md">
+            <SearchBox />
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 pt-12" aria-labelledby="cat-heading">
+        <h2 id="cat-heading" className="text-2xl sm:text-3xl">
+          Shop by activity
+        </h2>
+        <ul className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {CATEGORIES.map((c) => (
+            <li key={c.slug}>
+              <Link
+                href={`/browse?category=${c.slug}`}
+                className="flex h-full flex-col items-start gap-2 rounded-[var(--radius-card)] border border-line bg-paper p-4 text-ink no-underline hover:border-trail"
+              >
+                <CategoryIcon slug={c.slug} className="size-8 text-trail" />
+                <span className="font-heading text-lg leading-tight font-semibold text-pine">{c.name}</span>
+                <span className="text-[14px] text-muted">
+                  {counts[c.slug] ?? 0} {counts[c.slug] === 1 ? "item" : "items"}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 pt-14" aria-labelledby="recent-heading">
+        <div className="mb-5 flex items-end justify-between gap-4">
+          <h2 id="recent-heading" className="text-2xl sm:text-3xl">
+            Recently added gear
+          </h2>
+          <Link href="/browse" className="shrink-0 font-semibold">
+            See all
+          </Link>
         </div>
-      </main>
-    </div>
+        <ListingGrid listings={recent} />
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 pt-16" aria-labelledby="how-heading">
+        <div className="rounded-[var(--radius-card)] bg-sand px-5 py-10 sm:px-10">
+          <h2 id="how-heading" className="text-2xl sm:text-3xl">
+            Selling is simple
+          </h2>
+          <ol className="mt-6 grid gap-6 sm:grid-cols-3">
+            {STEPS.map(({ icon: Icon, title, body }, i) => (
+              <li key={title} className="flex gap-4">
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-pine text-white">
+                  <Icon className="size-6" aria-hidden="true" />
+                </span>
+                <div>
+                  <p className="font-semibold">
+                    {i + 1}. {title}
+                  </p>
+                  <p className="text-muted">{body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-8 flex flex-col items-start gap-4 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="flex items-center gap-2 text-muted">
+              <ShieldCheck className="size-5 shrink-0 text-trail" aria-hidden="true" />
+              Buyers pay through Stripe. Sellers are paid only once the package is on its way.
+            </p>
+            <ButtonLink href="/help/how-to-sell" variant="outline">
+              How it works
+            </ButtonLink>
+          </div>
+        </div>
+      </section>
+    </>
   );
 }

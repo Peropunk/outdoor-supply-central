@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Outdoor Supply Central
 
-## Getting Started
-
-First, run the development server:
+The used-gear marketplace for Outdoor Central, LLC, built against the Phase 1 work plan
+(`../Outdoor Supply Central Phase 1 Work Plan.md`).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev     # http://localhost:3000
+npm run build
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Stack: Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS 4, Supabase (Postgres, Auth,
+Storage). Stripe Connect and Shippo get connected in Chunks 4 and 5.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Without Supabase keys the site runs in preview mode on sample data. To connect it, follow [SETUP.md](SETUP.md).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Where things are
 
-## Learn More
+| Path | What |
+| --- | --- |
+| `src/app/globals.css` | Design tokens: palette, Jost/Inter type, base styles |
+| `src/components/ui.tsx` | Shared components: buttons, listing card, condition badge, status bar, fields |
+| `src/components/MountainArt.tsx` | SVG mountain-and-pine band (stand-in for JD's original art) |
+| `src/lib/catalog.ts` | Categories, condition grades, package sizes, banned items, ship-by days |
+| `src/lib/money.ts` | Commission (10% placeholder) and "You earn" maths, in cents |
+| `src/lib/listings.ts`, `src/lib/orders.ts` | **Sample data** behind async functions; swap for Supabase queries |
+| `supabase/migrations/0001_init.sql` | Phase 1 data model with row level security |
+| `supabase/migrations/0002_storage.sql` | Listing-photo storage bucket and upload rules |
+| `src/lib/supabase/`, `src/proxy.ts` | Supabase clients and per-request session refresh |
+| `src/lib/auth.ts`, `src/app/auth/` | Current user, sign-in, welcome, account and sign-out actions, link callback |
 
-To learn more about Next.js, take a look at the following resources:
+## Screens
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Home `/`, Browse and search `/browse`, Item `/item/[id]`, Sell in 4 steps `/sell`, Checkout `/checkout/[id]`,
+Order tracking `/orders/[number]` (add `?view=seller` for the seller's side), Report a problem, Seller dashboard
+`/dashboard`, Sign in `/signin`, 3-question welcome `/welcome`, Account `/account`, Help and policies `/help`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Screens that need sign-in, payments or the database show a dashed **Preview** note and run on sample data.
 
-## Deploy on Vercel
+## Open items
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- JD's original logo (transparent PNG or SVG) and mountain illustration files
+- Facebook, YouTube and TikTok URLs for the footer
+- The 11 decisions in the work plan; the code builds the defaults
+- Terms of use and privacy policy text
