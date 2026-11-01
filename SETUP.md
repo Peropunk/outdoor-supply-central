@@ -29,8 +29,18 @@ Authentication → URL Configuration:
 
 Authentication → Sign In / Providers → **Email**: leave it on. This sends the sign-in links.
 
-> Supabase's built-in mailer only sends a few emails an hour. That's fine for testing. Before launch, Chunk 4
-> points it at Resend or Postmark on JD's domain (Authentication → Emails → SMTP settings).
+Authentication → Emails → Templates: in both **Magic Link** and **Confirm signup**, change the link to:
+
+```html
+<a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=email">Sign in to Outdoor Supply Central</a>
+```
+
+The default link only works in the browser that asked for it. This one also works when someone asks for the link
+on a laptop and taps it on their phone. Both kinds land on `/auth/callback`, so no extra redirect URL is needed.
+
+> Supabase's built-in mailer only sends a few emails an hour, and may only deliver to your Supabase team's own
+> addresses. That's fine for testing. Before launch, Chunk 4 points it at Resend or Postmark on JD's domain
+> (Authentication → Emails → SMTP settings).
 
 ## 4. Google sign-in (optional for testing)
 

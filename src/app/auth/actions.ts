@@ -121,14 +121,12 @@ export async function updateAccount(formData: FormData) {
     .eq("id", user.id);
 
   if (hasAddress) {
-    await supabase
-      .from("seller_addresses")
-      .upsert({
-        user_id: user.id,
-        ...address,
-        name: address.name || user.displayName,
-        updated_at: new Date().toISOString(),
-      });
+    await supabase.from("seller_addresses").upsert({
+      user_id: user.id,
+      ...address,
+      name: address.name || user.displayName,
+      updated_at: new Date().toISOString(),
+    });
   }
 
   // Changing the email sends a confirmation link to the new address.

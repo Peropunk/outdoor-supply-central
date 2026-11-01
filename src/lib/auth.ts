@@ -1,5 +1,6 @@
 import "server-only";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import type { ACTIVITIES } from "./catalog";
 import { isSupabaseConfigured } from "./supabase/config";
 import { createClient } from "./supabase/server";
@@ -26,6 +27,9 @@ export type CurrentUser = {
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   if (!isSupabaseConfigured) return null;
 
+  // Supabase checks token expiry against the clock, so this must only run per
+  // request, never while Next.js prerenders the page.
+  await connection();
   const supabase = await createClient();
   const {
     data: { user },
@@ -57,4 +61,10 @@ export async function requireUser(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect("/signin");
   return user;
+}
+
+/** New users answer the welcome questions first; returning users go to their dashboard. */
+export async function landingPathAfterSignIn(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
+  const { data: profile } = await supabase.from("profiles").select("onboarded_at").eq("id", userId).single();
+  return profile?.onboarded_at ? "/dashboard" : "/welcome";
 }
