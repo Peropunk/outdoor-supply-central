@@ -10,8 +10,10 @@ npm run build
 npm run lint
 ```
 
-Stack: Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS 4. Supabase, Stripe Connect
-and Shippo get connected in Chunks 2, 4 and 5.
+Stack: Next.js 16 (App Router, Cache Components), TypeScript, Tailwind CSS 4, Supabase (Postgres, Auth,
+Storage). Stripe Connect and Shippo get connected in Chunks 4 and 5.
+
+Without Supabase keys the site runs in preview mode on sample data. To connect it, follow [SETUP.md](SETUP.md).
 
 ## Where things are
 
@@ -24,6 +26,9 @@ and Shippo get connected in Chunks 2, 4 and 5.
 | `src/lib/money.ts` | Commission (10% placeholder) and "You earn" maths, in cents |
 | `src/lib/listings.ts`, `src/lib/orders.ts` | **Sample data** behind async functions; swap for Supabase queries |
 | `supabase/migrations/0001_init.sql` | Phase 1 data model with row level security |
+| `supabase/migrations/0002_storage.sql` | Listing-photo storage bucket and upload rules |
+| `src/lib/supabase/`, `src/proxy.ts` | Supabase clients and per-request session refresh |
+| `src/lib/auth.ts`, `src/app/auth/` | Current user, sign-in, welcome, account and sign-out actions, link callback |
 
 ## Screens
 

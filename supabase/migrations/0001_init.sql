@@ -27,6 +27,7 @@ create table profiles (
   state text,
   intent user_intent,
   activities text[] not null default '{}',
+  ship_from_zip text check (ship_from_zip ~ '^\d{5}$'), -- private; used for shipping rates
   role user_role not null default 'member',
   suspended_at timestamptz,
   stripe_account_id text unique,          -- Stripe Connect Express (Chunk 4)
@@ -227,7 +228,7 @@ create policy "profiles: owner updates" on profiles for update
 -- Users may edit their own profile fields, but never their role, suspension
 -- or Stripe status; only the server sets those.
 revoke update on profiles from authenticated;
-grant update (display_name, city, state, intent, activities, onboarded_at) on profiles to authenticated;
+grant update (display_name, city, state, intent, activities, ship_from_zip, onboarded_at) on profiles to authenticated;
 
 create view public_profiles with (security_invoker = false) as
   select id, display_name, city, state from profiles where suspended_at is null;

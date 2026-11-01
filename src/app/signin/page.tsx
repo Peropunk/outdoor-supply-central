@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Mail } from "lucide-react";
-import { Card, Field, PreviewNotice, buttonClass, inputClass } from "@/components/ui";
+import { Card, PreviewNotice, buttonClass } from "@/components/ui";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { signInWithGoogle } from "../auth/actions";
+import { EmailLinkForm } from "./EmailLinkForm";
 
 export const metadata: Metadata = { title: "Sign in" };
 
 // Decision 1 default: Google or an emailed sign-in link (no passwords), then
-// three quick questions for new accounts. Wired to Supabase Auth in Chunk 2.
+// three quick questions for new accounts. Uses Supabase Auth once configured.
 export default function SignInPage() {
   return (
     <div className="mx-auto max-w-md px-4 pt-10">
@@ -14,31 +16,29 @@ export default function SignInPage() {
       <p className="mt-2 text-center text-muted">One account to buy and sell. No password to remember.</p>
 
       <Card className="mt-8 space-y-5">
-        <Link href="/welcome" className={buttonClass("outline", "w-full normal-case tracking-normal")}>
-          <GoogleMark />
-          Continue with Google
-        </Link>
+        <form action={signInWithGoogle}>
+          <button type="submit" className={buttonClass("outline", "w-full normal-case tracking-normal")}>
+            <GoogleMark />
+            Continue with Google
+          </button>
+        </form>
 
         <div className="flex items-center gap-3 text-[14px] text-muted">
           <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
         </div>
 
-        <Field label="Email" htmlFor="email" hint="We'll email you a link that signs you in.">
-          <input id="email" type="email" autoComplete="email" inputMode="email" className={inputClass} />
-        </Field>
-        <Link href="/welcome" className={buttonClass("primary", "w-full")}>
-          <Mail className="size-5" aria-hidden="true" />
-          Email me a sign-in link
-        </Link>
+        <EmailLinkForm />
       </Card>
 
       <p className="mt-4 text-center text-[14px] text-muted">
         By continuing you agree to the <Link href="/help/terms">terms of use</Link> and{" "}
         <Link href="/help/privacy">privacy policy</Link>.
       </p>
-      <div className="mt-6">
-        <PreviewNotice>both buttons skip ahead to the welcome questions until sign-in is connected.</PreviewNotice>
-      </div>
+      {!isSupabaseConfigured && (
+        <div className="mt-6">
+          <PreviewNotice>both buttons skip ahead to the welcome questions until Supabase is connected.</PreviewNotice>
+        </div>
+      )}
     </div>
   );
 }

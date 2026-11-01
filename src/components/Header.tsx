@@ -47,8 +47,8 @@ export function Header() {
             <Search className="size-6" aria-hidden="true" />
           </Link>
           <Link
-            href="/signin"
-            aria-label="Sign in or your account"
+            href="/account"
+            aria-label="Your account"
             className="flex size-12 items-center justify-center rounded-md text-ink hover:bg-sand max-md:hidden"
           >
             <User className="size-6" aria-hidden="true" />

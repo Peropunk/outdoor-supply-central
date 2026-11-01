@@ -1,11 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { Button, Field, inputClass } from "@/components/ui";
+import type { Intent } from "@/lib/auth";
 import { ACTIVITIES } from "@/lib/catalog";
-
-type Intent = "buying" | "selling" | "both";
+import { saveWelcome } from "../auth/actions";
 
 const INTENTS: { id: Intent; label: string }[] = [
   { id: "buying", label: "Buying gear" },
@@ -14,12 +13,12 @@ const INTENTS: { id: Intent; label: string }[] = [
 ];
 
 export function Questionnaire() {
-  const router = useRouter();
   const [intent, setIntent] = useState<Intent | "">("");
   const [activities, setActivities] = useState<string[]>([]);
   const [displayName, setDisplayName] = useState("");
   const [zip, setZip] = useState("");
   const [error, setError] = useState("");
+  const [pending, startTransition] = useTransition();
 
   const sells = intent === "selling" || intent === "both";
 
@@ -27,13 +26,15 @@ export function Questionnaire() {
     setActivities((cur) => (cur.includes(a) ? cur.filter((x) => x !== a) : [...cur, a]));
   }
 
-  function submit(e: React.FormEvent) {
+  function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!intent) return setError("Pick whether you're buying, selling or both.");
     if (sells && !/^\d{5}$/.test(zip)) return setError("Enter a 5-digit ZIP code so we can price shipping.");
     if (sells && displayName.trim().length < 2) return setError("Add a display name buyers will see.");
-    // Chunk 2: save to `profiles` in Supabase.
-    router.push(sells ? "/sell" : "/browse");
+    setError("");
+    const data = new FormData(e.currentTarget);
+    // Saves to `profiles` and redirects to Sell or Browse.
+    startTransition(() => saveWelcome(data));
   }
 
   return (
@@ -75,7 +76,14 @@ export function Questionnaire() {
                   on ? "border-pine bg-pine text-white" : "border-line bg-paper"
                 }`}
               >
-                <input type="checkbox" checked={on} onChange={() => toggle(a)} className="sr-only" />
+                <input
+                  type="checkbox"
+                  name="activities"
+                  value={a}
+                  checked={on}
+                  onChange={() => toggle(a)}
+                  className="sr-only"
+                />
                 {a}
               </label>
             );
@@ -90,6 +98,7 @@ export function Questionnaire() {
             <Field label="ZIP code" htmlFor="zip" hint="Kept private. We use it to price USPS shipping.">
               <input
                 id="zip"
+                name="zip"
                 inputMode="numeric"
                 autoComplete="postal-code"
                 maxLength={5}
@@ -101,6 +110,7 @@ export function Questionnaire() {
             <Field label="Display name" htmlFor="display-name" hint="Shown on your listings, e.g. “Maya R.”">
               <input
                 id="display-name"
+                name="displayName"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 className={inputClass}
@@ -117,8 +127,8 @@ export function Questionnaire() {
           {error}
         </p>
       )}
-      <Button type="submit" className="w-full">
-        Done
+      <Button type="submit" disabled={pending} className="w-full">
+        {pending ? "Saving…" : "Done"}
       </Button>
     </form>
   );

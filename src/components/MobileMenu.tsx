@@ -45,15 +45,18 @@ export function MobileMenu({ items }: { items: { href: string; label: string }[]
               <X className="size-6" aria-hidden="true" />
             </button>
             <ul className="mt-2 divide-y divide-line">
-              {[...items, { href: "/dashboard", label: "My dashboard" }, { href: "/signin", label: "Sign in" }].map(
-                (item) => (
-                  <li key={item.href}>
-                    <Link href={item.href} className="block py-4 text-lg text-ink no-underline">
-                      {item.label}
-                    </Link>
-                  </li>
-                ),
-              )}
+              {[
+                ...items,
+                { href: "/dashboard", label: "My dashboard" },
+                { href: "/account", label: "My account" },
+                { href: "/signin", label: "Sign in" },
+              ].map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href} className="block py-4 text-lg text-ink no-underline">
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
             <div className="mt-auto grid gap-3 pb-4">
               <Link href="/browse" className={buttonClass("secondary")}>
