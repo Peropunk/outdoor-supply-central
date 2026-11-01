@@ -60,7 +60,8 @@ where id = (select id from auth.users where email = 'jd@example.com');
 
 ## 7. Staging on Vercel
 
-Import the GitHub repo in Vercel, set **Root Directory** to `web`, and add the same three variables plus
+Import the GitHub repo in Vercel (leave **Root Directory** blank: the app is at the repo root), and add the
+same three variables plus
 `NEXT_PUBLIC_SITE_URL` (the staging address) under Settings → Environment Variables. Every push then gets its
 own preview link.
 
