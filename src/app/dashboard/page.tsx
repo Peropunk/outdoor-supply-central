@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ExternalLink, Pause, Pencil, Play } from "lucide-react";
+import { CircleCheck, ExternalLink, Pause, Pencil, Play, Trash } from "lucide-react";
 import { GearPhoto } from "@/components/GearPhoto";
 import { ButtonLink, Card, ConditionBadge, PreviewNotice, StatusBar, buttonClass } from "@/components/ui";
-import { getListingsBySeller } from "@/lib/listings";
+import { requireUser } from "@/lib/auth";
+import { SAMPLE_SELLER_ID, getListingsBySeller, type ListingStatus } from "@/lib/listings";
 import { formatUSD } from "@/lib/money";
 import { currentStepIndex, getOrders } from "@/lib/orders";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { deleteListing, setListingPaused } from "../listings/actions";
 
 export const metadata: Metadata = { title: "My dashboard" };
 
@@ -19,23 +22,35 @@ type TabId = (typeof TABS)[number]["id"];
 
 const dayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" });
 
-// Until sign-in lands in Chunk 2 the dashboard shows the sample seller.
-const SAMPLE_SELLER = "u_jd";
+const STATUS_LABEL: Record<ListingStatus, string> = {
+  active: "For sale",
+  reserved: "In checkout",
+  sold: "Sold",
+  paused: "Paused",
+  removed: "Removed",
+};
 
 export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const sp = await props.searchParams;
-  const tab: TabId = TABS.find((t) => t.id === sp.tab)?.id ?? "ship";
-  const [listings, orders] = await Promise.all([getListingsBySeller(SAMPLE_SELLER), getOrders()]);
+  const live = isSupabaseConfigured;
+  const user = live ? await requireUser() : null;
 
-  const sales = orders.filter(({ listing }) => listing.seller.id === SAMPLE_SELLER);
+  // Real listings come from Supabase. Sales, payouts and purchases stay on
+  // sample data in preview mode and are empty until checkout lands (Chunk 4).
+  const sellerId = user?.id ?? SAMPLE_SELLER_ID;
+  const [listings, orders] = await Promise.all([getListingsBySeller(sellerId), live ? [] : getOrders()]);
+  const sales = orders.filter(({ listing }) => listing.seller.id === sellerId);
   const toShip = sales.filter(({ order }) => order.status === "label_ready" || order.status === "paid");
-  const purchases = orders.filter(({ listing }) => listing.seller.id !== SAMPLE_SELLER);
+  const purchases = orders.filter(({ listing }) => listing.seller.id !== sellerId);
+
+  const defaultTab: TabId = live && !toShip.length ? "listings" : "ship";
+  const tab: TabId = TABS.find((t) => t.id === sp.tab)?.id ?? defaultTab;
 
   return (
     <div className="mx-auto max-w-4xl px-4 pt-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-muted">Hi, JD</p>
+          <p className="text-muted">Hi, {user ? user.displayName || "there" : "JD"}</p>
           <h1 className="text-3xl">My dashboard</h1>
         </div>
         <ButtonLink href="/sell">Sell an item</ButtonLink>
@@ -67,6 +82,12 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         </ul>
       </nav>
 
+      {sp.updated === "1" && (
+        <p role="status" className="mt-6 flex items-center gap-2 rounded-md bg-pine px-4 py-3 text-white">
+          <CircleCheck className="size-5" aria-hidden="true" /> Listing updated.
+        </p>
+      )}
+
       <div className="mt-6 space-y-4">
         {tab === "ship" &&
           (toShip.length ? (
@@ -92,45 +113,34 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           ))}
 
         {tab === "listings" &&
-          listings.map((l) => (
-            <Card key={l.id} className="flex items-center gap-4">
-              <GearPhoto photo={l.photos[0]} size="sm" className="w-20 shrink-0 rounded-md" />
-              <div className="min-w-0 flex-1">
-                <Link href={`/item/${l.id}`} className="line-clamp-1 font-semibold text-ink">
-                  {l.title}
-                </Link>
-                <p className="flex flex-wrap items-center gap-2 text-[15px]">
-                  <span className="font-bold">{formatUSD(l.priceCents)}</span>
-                  <ConditionBadge condition={l.condition} />
-                  <span className="text-muted capitalize">{l.status}</span>
-                </p>
-              </div>
-              {l.status !== "sold" && (
-                <div className="flex shrink-0">
-                  <button
-                    type="button"
-                    className="flex size-11 items-center justify-center rounded-md hover:bg-sand"
-                    aria-label={`Edit ${l.title}`}
-                  >
-                    <Pencil className="size-5" aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    className="flex size-11 items-center justify-center rounded-md hover:bg-sand"
-                    aria-label={`${l.status === "paused" ? "Resume" : "Pause"} ${l.title}`}
-                  >
-                    {l.status === "paused" ? (
-                      <Play className="size-5" aria-hidden="true" />
-                    ) : (
-                      <Pause className="size-5" aria-hidden="true" />
-                    )}
-                  </button>
+          (listings.length ? (
+            listings.map((l) => (
+              <Card key={l.id} className="flex items-center gap-4">
+                <GearPhoto photo={l.photos[0]} size="sm" className="w-20 shrink-0 rounded-md" />
+                <div className="min-w-0 flex-1">
+                  <Link href={`/item/${l.id}`} className="line-clamp-1 font-semibold text-ink">
+                    {l.title}
+                  </Link>
+                  <p className="flex flex-wrap items-center gap-2 text-[15px]">
+                    <span className="font-bold">{formatUSD(l.priceCents)}</span>
+                    <ConditionBadge condition={l.condition} />
+                    <span className={l.status === "paused" ? "font-semibold text-boot" : "text-muted"}>
+                      {STATUS_LABEL[l.status]}
+                    </span>
+                  </p>
                 </div>
-              )}
-            </Card>
+                {live && (l.status === "active" || l.status === "paused") && (
+                  <ListingTools id={l.id} title={l.title} paused={l.status === "paused"} />
+                )}
+              </Card>
+            ))
+          ) : (
+            <Empty text="You haven't listed anything yet. It takes about three minutes from your phone." />
           ))}
 
-        {tab === "payouts" && (
+        {tab === "payouts" && live && !sales.length && <Empty text="Payouts show here once your first sale ships." />}
+
+        {tab === "payouts" && (!live || sales.length > 0) && (
           <>
             <Card>
               <dl className="grid grid-cols-2 gap-4">
@@ -193,7 +203,13 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       </div>
 
       <div className="mt-8">
-        <PreviewNotice>sample seller data. Your own listings and sales show here once you sign in.</PreviewNotice>
+        {live ? (
+          <PreviewNotice>sales, payouts and purchases appear here once checkout goes live in Chunk 4.</PreviewNotice>
+        ) : (
+          <PreviewNotice>
+            sample seller data. Your own listings and sales show here once Supabase is connected.
+          </PreviewNotice>
+        )}
       </div>
     </div>
   );
@@ -204,5 +220,39 @@ function Empty({ text }: { text: string }) {
     <p className="rounded-[var(--radius-card)] border border-dashed border-line bg-paper p-8 text-center text-muted">
       {text}
     </p>
+  );
+}
+
+const iconButton = "flex size-11 items-center justify-center rounded-md text-ink no-underline hover:bg-sand";
+
+function ListingTools({ id, title, paused }: { id: string; title: string; paused: boolean }) {
+  return (
+    <div className="flex shrink-0 items-center">
+      <Link href={`/listings/${id}/edit`} className={iconButton} aria-label={`Edit ${title}`}>
+        <Pencil className="size-5" aria-hidden="true" />
+      </Link>
+      <form action={setListingPaused.bind(null, id, !paused)}>
+        <button type="submit" className={iconButton} aria-label={`${paused ? "Put back on sale" : "Pause"} ${title}`}>
+          {paused ? <Play className="size-5" aria-hidden="true" /> : <Pause className="size-5" aria-hidden="true" />}
+        </button>
+      </form>
+      <details className="relative">
+        <summary className={`${iconButton} cursor-pointer list-none`} aria-label={`Delete ${title}`}>
+          <Trash className="size-5" aria-hidden="true" />
+        </summary>
+        <form
+          action={deleteListing.bind(null, id)}
+          className="absolute right-0 z-10 mt-1 w-56 rounded-md border border-line bg-paper p-3 shadow-lg"
+        >
+          <p className="text-[15px]">Delete this listing and its photos for good?</p>
+          <button
+            type="submit"
+            className="label-caps mt-2 inline-flex min-h-10 w-full items-center justify-center rounded-md bg-alert px-4 text-[14px] text-white hover:bg-alert/90"
+          >
+            Delete
+          </button>
+        </form>
+      </details>
+    </div>
   );
 }

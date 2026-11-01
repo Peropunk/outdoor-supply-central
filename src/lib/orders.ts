@@ -1,11 +1,11 @@
-import { SHIP_BY_DAYS } from "./catalog";
-import { getListing, type Listing } from "./listings";
+import { ORDER_STEPS, SHIP_BY_DAYS } from "./catalog";
+import { getSampleListing, type Listing } from "./listings";
 import { commissionFor } from "./money";
 
 // Sample orders stand in for the `orders` table until Stripe and Shippo are
 // connected (Chunks 4 and 5).
 
-export const ORDER_STEPS = ["Paid", "Label ready", "Shipped", "Delivered"] as const;
+export { ORDER_STEPS } from "./catalog";
 export type OrderStep = (typeof ORDER_STEPS)[number];
 
 export type OrderStatus = "paid" | "label_ready" | "shipped" | "delivered" | "cancelled" | "refunded";
@@ -77,14 +77,14 @@ const ORDERS: Order[] = [
 export async function getOrder(number: string) {
   const order = ORDERS.find((o) => o.number === number);
   if (!order) return undefined;
-  return { order, listing: (await getListing(order.listingId)) as Listing };
+  return { order, listing: getSampleListing(order.listingId) as Listing };
 }
 
 export async function getOrders() {
   return Promise.all(
     ORDERS.map(async (order) => ({
       order,
-      listing: (await getListing(order.listingId)) as Listing,
+      listing: getSampleListing(order.listingId) as Listing,
     })),
   );
 }

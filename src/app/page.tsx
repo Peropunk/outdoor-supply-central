@@ -73,7 +73,19 @@ export default async function Home() {
             See all
           </Link>
         </div>
-        <ListingGrid listings={recent} />
+        {recent.length ? (
+          <ListingGrid listings={recent} />
+        ) : (
+          <div className="rounded-[var(--radius-card)] border border-dashed border-line bg-paper p-10 text-center">
+            <p className="text-lg font-semibold">Fresh gear is on its way.</p>
+            <p className="mt-1 text-muted">
+              Be one of the first to list. It takes about three minutes from your phone.
+            </p>
+            <ButtonLink href="/sell" className="mt-5">
+              Sell your gear
+            </ButtonLink>
+          </div>
+        )}
       </section>
 
       <section className="mx-auto max-w-6xl px-4 pt-16" aria-labelledby="how-heading">

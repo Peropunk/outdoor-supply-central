@@ -1,8 +1,10 @@
 import type { CategorySlug, ConditionId, PackageSizeId } from "./catalog";
+import * as db from "./listings-db";
+import { isSupabaseConfigured } from "./supabase/config";
 
-// Sample data stands in for the Supabase `listings` table (see
-// supabase/migrations) until the database is connected in Chunk 2. Pages
-// only call the functions below, so swapping the source is a local change.
+// Pages read listings only through the functions at the bottom of this file.
+// With Supabase connected they query the `listings` table (listings-db.ts);
+// in preview mode they use the sample data below.
 
 export type GearIcon =
   | "tent"
@@ -21,9 +23,10 @@ export type GearIcon =
   | "boat"
   | "snow";
 
-export type Photo = { icon: GearIcon; tone: string; alt: string };
+/** A seller's uploaded photo, or an illustrated placeholder in the sample data. */
+export type Photo = { alt: string } & ({ url: string } | { icon: GearIcon; tone: string });
 
-export type ListingStatus = "active" | "reserved" | "sold" | "paused";
+export type ListingStatus = "active" | "reserved" | "sold" | "paused" | "removed";
 
 export type Listing = {
   id: string;
@@ -37,7 +40,7 @@ export type Listing = {
   priceCents: number;
   packageSize: PackageSizeId;
   photos: Photo[];
-  seller: { id: string; displayName: string; city: string; state: string };
+  seller: { id: string; displayName: string; city: string | null; state: string | null };
   createdAt: string;
   status: ListingStatus;
 };
@@ -312,7 +315,7 @@ export type ListingQuery = {
 };
 
 /** Browse and search: only active items, matching words in title, brand or description. */
-export async function searchListings(query: ListingQuery = {}): Promise<Listing[]> {
+function sampleSearch(query: ListingQuery): Listing[] {
   const words = (query.q ?? "").toLowerCase().split(/\s+/).filter(Boolean);
 
   const results = LISTINGS.filter((l) => {
@@ -338,19 +341,35 @@ export async function searchListings(query: ListingQuery = {}): Promise<Listing[
   }
 }
 
-export async function getRecentListings(limit = 8) {
-  return (await searchListings({ sort: "newest" })).slice(0, limit);
-}
-
-export async function getListing(id: string): Promise<Listing | undefined> {
+/** Sample listing by id. Sample orders keep using these until Chunk 4. */
+export function getSampleListing(id: string): Listing | undefined {
   return LISTINGS.find((l) => l.id === id);
 }
 
-export async function getListingsBySeller(sellerId: string) {
-  return LISTINGS.filter((l) => l.seller.id === sellerId);
+export const SAMPLE_SELLER_ID = sellers.jd.id;
+
+// Public API ------------------------------------------------------------------
+
+export async function searchListings(query: ListingQuery = {}): Promise<Listing[]> {
+  return isSupabaseConfigured ? db.searchListings(query) : sampleSearch(query);
 }
 
-export async function countByCategory() {
+export async function getRecentListings(limit = 8): Promise<Listing[]> {
+  return (await searchListings({ sort: "newest" })).slice(0, limit);
+}
+
+/** Any listing that is for sale, reserved or sold. Paused listings only show to their seller. */
+export async function getListing(id: string): Promise<Listing | undefined> {
+  return isSupabaseConfigured ? db.getListing(id) : getSampleListing(id);
+}
+
+/** Every listing of one seller, including paused and sold ones. */
+export async function getListingsBySeller(sellerId: string): Promise<Listing[]> {
+  return isSupabaseConfigured ? db.getListingsBySeller(sellerId) : LISTINGS.filter((l) => l.seller.id === sellerId);
+}
+
+export async function countByCategory(): Promise<Record<string, number>> {
+  if (isSupabaseConfigured) return db.countByCategory();
   const counts: Record<string, number> = {};
   for (const l of LISTINGS) {
     if (l.status === "active") counts[l.category] = (counts[l.category] ?? 0) + 1;

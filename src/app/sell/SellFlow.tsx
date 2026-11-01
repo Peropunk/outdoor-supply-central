@@ -15,12 +15,20 @@ import {
 } from "@/lib/catalog";
 import { DEFAULT_COMMISSION_RATE, commissionFor, dollarsToCents, formatUSD, sellerEarnings } from "@/lib/money";
 import { resizeImage } from "@/lib/resize-image";
+import { getBrowserClient } from "@/lib/supabase/client";
+import { PHOTO_BUCKET } from "@/lib/supabase/config";
+import { createListing } from "../listings/actions";
 
 const STEPS = ["Photos", "Details", "Price and package", "Review"] as const;
 const MAX_PHOTOS = 10;
 
+/** The signed-in seller when Supabase is connected; null in preview mode. */
+export type SellerContext = { id: string; needsAddress: boolean; name: string; zip: string };
+
+type Address = { name: string; line1: string; line2: string; city: string; state: string; zip: string };
+
 type Draft = {
-  photos: { url: string; size: number }[];
+  photos: { url: string; size: number; blob: Blob }[];
   title: string;
   brand: string;
   category: string;
@@ -31,6 +39,7 @@ type Draft = {
   price: string;
   packageSize: PackageSizeId | "";
   agreed: boolean;
+  address: Address;
 };
 
 const EMPTY: Draft = {
@@ -45,9 +54,10 @@ const EMPTY: Draft = {
   price: "",
   packageSize: "",
   agreed: false,
+  address: { name: "", line1: "", line2: "", city: "", state: "", zip: "" },
 };
 
-function problems(step: number, d: Draft): string[] {
+function problems(step: number, d: Draft, needsAddress: boolean): string[] {
   const out: string[] = [];
   if (step === 0 && d.photos.length === 0) out.push("Add at least one photo.");
   if (step === 1) {
@@ -63,15 +73,26 @@ function problems(step: number, d: Draft): string[] {
     if (cents < 500) out.push("Set a price of at least $5.");
     if (!d.packageSize) out.push("Pick a package size.");
   }
+  if (step === 3 && needsAddress) {
+    const a = d.address;
+    if (!a.name.trim() || !a.line1.trim() || !a.city.trim()) out.push("Fill in your name, street and city.");
+    if (!/^[A-Za-z]{2}$/.test(a.state.trim())) out.push("Use the 2-letter state code, like OR.");
+    if (!/^\d{5}$/.test(a.zip.trim())) out.push("Enter a 5-digit ZIP code.");
+  }
   if (step === 3 && !d.agreed) out.push("Confirm the item isn't on the banned list.");
   return out;
 }
 
-export function SellFlow() {
+export function SellFlow({ seller }: { seller: SellerContext | null }) {
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<Draft>(EMPTY);
+  const [draft, setDraft] = useState<Draft>(() =>
+    seller ? { ...EMPTY, address: { ...EMPTY.address, name: seller.name, zip: seller.zip } } : EMPTY,
+  );
   const [errors, setErrors] = useState<string[]>([]);
-  const [published, setPublished] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [published, setPublished] = useState<{ id: string | null } | null>(null);
+  const [addressSaved, setAddressSaved] = useState(false);
+  const needsAddress = Boolean(seller?.needsAddress) && !addressSaved;
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const update = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
@@ -83,13 +104,58 @@ export function SellFlow() {
     mounted.current = true;
   }, [step]);
 
-  function next() {
-    const p = problems(step, draft);
+  async function publish() {
+    if (!seller) {
+      setPublished({ id: null });
+      return;
+    }
+
+    // Photos go straight from the phone to Storage under <seller>/<listing>/,
+    // then the server checks everything and saves the listing.
+    const id = crypto.randomUUID();
+    const storage = getBrowserClient().storage.from(PHOTO_BUCKET);
+    const paths: string[] = [];
+    try {
+      for (const [i, photo] of draft.photos.entries()) {
+        const path = `${seller.id}/${id}/${i + 1}.jpg`;
+        const { error } = await storage.upload(path, photo.blob, { contentType: "image/jpeg", upsert: false });
+        if (error) throw new Error("A photo didn't upload. Check your connection and try again.");
+        paths.push(path);
+      }
+      const result = await createListing({
+        id,
+        photoPaths: paths,
+        agreedToRules: draft.agreed,
+        address: needsAddress ? draft.address : undefined,
+        fields: {
+          title: draft.title,
+          brand: draft.brand,
+          category: draft.category,
+          subcategory: draft.subcategory,
+          condition: draft.condition,
+          flaws: draft.flaws,
+          description: draft.description,
+          priceCents: dollarsToCents(draft.price),
+          packageSize: draft.packageSize,
+        },
+      });
+      if (!result.ok) throw new Error(result.error);
+      setAddressSaved(true);
+      setPublished({ id: result.id });
+    } catch (e) {
+      if (paths.length) await storage.remove(paths);
+      setErrors([e instanceof Error && e.message ? e.message : "Publishing failed. Please try again."]);
+    }
+  }
+
+  async function next() {
+    const p = problems(step, draft, needsAddress);
     setErrors(p);
     if (p.length) return;
     if (step === STEPS.length - 1) {
-      // Chunk 3 wires this to Supabase: upload photos to Storage, insert the listing.
-      setPublished(true);
+      setPublishing(true);
+      await publish();
+      setPublishing(false);
       window.scrollTo({ top: 0 });
       return;
     }
@@ -110,17 +176,25 @@ export function SellFlow() {
         <p className="mt-2 text-muted">
           We&apos;ll email you the moment it sells, with a QR code to drop it off at USPS.
         </p>
-        <div className="mx-auto mt-6 max-w-sm">
-          <PreviewNotice>listings save once the database is connected in Chunk 2.</PreviewNotice>
-        </div>
+        {!published.id && (
+          <div className="mx-auto mt-6 max-w-sm">
+            <PreviewNotice>listings save once Supabase is connected.</PreviewNotice>
+          </div>
+        )}
         <div className="mt-8 grid gap-3 sm:flex sm:justify-center">
+          {published.id && (
+            <Link href={`/item/${published.id}`} className={buttonClass("primary")}>
+              See your listing
+            </Link>
+          )}
           <button
             type="button"
-            className={buttonClass("primary")}
+            className={buttonClass(published.id ? "outline" : "primary")}
             onClick={() => {
-              setDraft(EMPTY);
+              draft.photos.forEach((p) => URL.revokeObjectURL(p.url));
+              setDraft({ ...EMPTY, address: draft.address });
               setStep(0);
-              setPublished(false);
+              setPublished(null);
             }}
           >
             List another item
@@ -163,7 +237,7 @@ export function SellFlow() {
         {step === 0 && <PhotosStep draft={draft} update={update} />}
         {step === 1 && <DetailsStep draft={draft} update={update} />}
         {step === 2 && <PriceStep draft={draft} update={update} />}
-        {step === 3 && <ReviewStep draft={draft} update={update} />}
+        {step === 3 && <ReviewStep draft={draft} update={update} needsAddress={needsAddress} />}
       </div>
 
       {errors.length > 0 && (
@@ -181,8 +255,8 @@ export function SellFlow() {
       )}
 
       <div className="sticky bottom-0 -mx-4 mt-8 border-t border-line bg-canvas/95 px-4 py-3 backdrop-blur">
-        <Button type="button" onClick={next} className="w-full">
-          {step === STEPS.length - 1 ? "Publish listing" : "Next"}
+        <Button type="button" onClick={next} disabled={publishing} className="w-full">
+          {step < STEPS.length - 1 ? "Next" : publishing ? "Publishing…" : "Publish listing"}
         </Button>
       </div>
     </div>
@@ -204,7 +278,7 @@ function PhotosStep({ draft, update }: StepProps) {
         .slice(0, room)
         .map(async (f) => {
           const blob = await resizeImage(f);
-          return { url: URL.createObjectURL(blob), size: blob.size };
+          return { url: URL.createObjectURL(blob), size: blob.size, blob };
         }),
     );
     update({ photos: [...draft.photos, ...resized] });
@@ -452,7 +526,7 @@ function PriceStep({ draft, update }: StepProps) {
   );
 }
 
-function ReviewStep({ draft, update }: StepProps) {
+function ReviewStep({ draft, update, needsAddress }: StepProps & { needsAddress: boolean }) {
   const cents = dollarsToCents(draft.price);
   const pkg = PACKAGE_SIZES.find((p) => p.id === draft.packageSize);
   return (
@@ -495,6 +569,83 @@ function ReviewStep({ draft, update }: StepProps) {
           <span>My item isn&apos;t on this list, and I&apos;ll ship it within 5 days of the sale.</span>
         </label>
       </div>
+
+      {needsAddress && <AddressCard draft={draft} update={update} />}
     </>
+  );
+}
+
+/** Asked once, before a seller's first listing: USPS labels need the full ship-from address. */
+function AddressCard({ draft, update }: StepProps) {
+  const a = draft.address;
+  const set = (patch: Partial<Address>) => update({ address: { ...a, ...patch } });
+  return (
+    <div className="space-y-4 rounded-[var(--radius-card)] border border-line bg-paper p-5">
+      <div>
+        <p className="font-semibold">Where will you ship from?</p>
+        <p className="text-[15px] text-muted">
+          Printed on your USPS labels. Buyers only see your city and state. We&apos;ll remember it for next time.
+        </p>
+      </div>
+      <Field label="Name on labels" htmlFor="ship-name">
+        <input
+          id="ship-name"
+          autoComplete="name"
+          value={a.name}
+          onChange={(e) => set({ name: e.target.value })}
+          className={inputClass}
+        />
+      </Field>
+      <Field label="Street address" htmlFor="ship-line1">
+        <input
+          id="ship-line1"
+          autoComplete="address-line1"
+          value={a.line1}
+          onChange={(e) => set({ line1: e.target.value })}
+          className={inputClass}
+        />
+      </Field>
+      <Field label="Apartment, suite (optional)" htmlFor="ship-line2">
+        <input
+          id="ship-line2"
+          autoComplete="address-line2"
+          value={a.line2}
+          onChange={(e) => set({ line2: e.target.value })}
+          className={inputClass}
+        />
+      </Field>
+      <div className="grid grid-cols-[1fr_72px_100px] gap-3">
+        <Field label="City" htmlFor="ship-city">
+          <input
+            id="ship-city"
+            autoComplete="address-level2"
+            value={a.city}
+            onChange={(e) => set({ city: e.target.value })}
+            className={inputClass}
+          />
+        </Field>
+        <Field label="State" htmlFor="ship-state">
+          <input
+            id="ship-state"
+            autoComplete="address-level1"
+            maxLength={2}
+            value={a.state}
+            onChange={(e) => set({ state: e.target.value.toUpperCase() })}
+            className={inputClass}
+          />
+        </Field>
+        <Field label="ZIP" htmlFor="ship-zip">
+          <input
+            id="ship-zip"
+            inputMode="numeric"
+            autoComplete="postal-code"
+            maxLength={5}
+            value={a.zip}
+            onChange={(e) => set({ zip: e.target.value.replace(/\D/g, "") })}
+            className={inputClass}
+          />
+        </Field>
+      </div>
+    </div>
   );
 }

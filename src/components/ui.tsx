@@ -1,10 +1,9 @@
 import Link from "next/link";
 import { Check } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
-import { getCondition, type ConditionId } from "@/lib/catalog";
+import { ORDER_STEPS, getCondition, type ConditionId } from "@/lib/catalog";
 import type { Listing } from "@/lib/listings";
 import { formatUSD } from "@/lib/money";
-import { ORDER_STEPS } from "@/lib/orders";
 import { GearPhoto } from "./GearPhoto";
 
 type Variant = "primary" | "secondary" | "outline" | "ghost";

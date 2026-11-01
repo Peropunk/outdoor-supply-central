@@ -40,6 +40,7 @@ export default async function ItemPage(props: PageProps<"/item/[id]">) {
                 key={i}
                 photo={photo}
                 size="lg"
+                priority={i === 0}
                 className={`w-full shrink-0 md:rounded-[var(--radius-card)] ${i === 0 ? "md:col-span-2" : ""}`}
               />
             ))}
@@ -114,10 +115,13 @@ export default async function ItemPage(props: PageProps<"/item/[id]">) {
           <div className="mt-8 flex items-center justify-between gap-4 border-t border-line pt-5">
             <div>
               <p className="font-semibold">{listing.seller.displayName}</p>
-              <p className="flex items-center gap-1 text-[15px] text-muted">
-                <MapPin className="size-4" aria-hidden="true" />
-                Ships from {listing.seller.city}, {listing.seller.state}
-              </p>
+              {listing.seller.city && (
+                <p className="flex items-center gap-1 text-[15px] text-muted">
+                  <MapPin className="size-4" aria-hidden="true" />
+                  Ships from {listing.seller.city}
+                  {listing.seller.state && `, ${listing.seller.state}`}
+                </p>
+              )}
             </div>
             <Link href={`/item/${listing.id}/report`} className="flex items-center gap-1 text-[15px] text-muted">
               <Flag className="size-4" aria-hidden="true" />

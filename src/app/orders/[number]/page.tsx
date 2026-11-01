@@ -116,7 +116,7 @@ export default async function OrderPage(props: PageProps<"/orders/[number]">) {
             <p className="text-[15px] text-muted">
               {asSeller
                 ? `Buyer: ${order.buyer.name}, ${order.buyer.city}, ${order.buyer.state}`
-                : `Seller: ${listing.seller.displayName}, ${listing.seller.city}, ${listing.seller.state}`}
+                : `Seller: ${[listing.seller.displayName, listing.seller.city, listing.seller.state].filter(Boolean).join(", ")}`}
             </p>
           </div>
         </div>

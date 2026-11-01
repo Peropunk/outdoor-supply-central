@@ -140,3 +140,6 @@ export const ACTIVITIES = [
   "Climbing",
   "Winter sports",
 ];
+
+// Order status bar, shown to buyer and seller.
+export const ORDER_STEPS = ["Paid", "Label ready", "Shipped", "Delivered"] as const;
