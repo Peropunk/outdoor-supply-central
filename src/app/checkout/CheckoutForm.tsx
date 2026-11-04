@@ -93,7 +93,8 @@ export function CheckoutForm({
           <Field label="Full name" htmlFor="name">
             <input
               id="name"
-              autoComplete="name"
+              name="name"
+              autoComplete="shipping name"
               required
               value={address.name}
               onChange={(e) => update({ name: e.target.value })}
@@ -103,7 +104,8 @@ export function CheckoutForm({
           <Field label="Street address" htmlFor="line1">
             <input
               id="line1"
-              autoComplete="address-line1"
+              name="address-line1"
+              autoComplete="shipping address-line1"
               required
               value={address.line1}
               onChange={(e) => update({ line1: e.target.value })}
@@ -113,7 +115,8 @@ export function CheckoutForm({
           <Field label="Apartment, suite (optional)" htmlFor="line2">
             <input
               id="line2"
-              autoComplete="address-line2"
+              name="address-line2"
+              autoComplete="shipping address-line2"
               value={address.line2}
               onChange={(e) => update({ line2: e.target.value })}
               className={inputClass}
@@ -123,7 +126,8 @@ export function CheckoutForm({
             <Field label="City" htmlFor="city">
               <input
                 id="city"
-                autoComplete="address-level2"
+                name="city"
+                autoComplete="shipping address-level2"
                 required
                 value={address.city}
                 onChange={(e) => update({ city: e.target.value })}
@@ -133,7 +137,8 @@ export function CheckoutForm({
             <Field label="State" htmlFor="state">
               <select
                 id="state"
-                autoComplete="address-level1"
+                name="state"
+                autoComplete="shipping address-level1"
                 required
                 value={address.state}
                 onChange={(e) => update({ state: e.target.value })}
@@ -148,8 +153,9 @@ export function CheckoutForm({
             <Field label="ZIP code" htmlFor="zip">
               <input
                 id="zip"
+                name="postal-code"
                 inputMode="numeric"
-                autoComplete="postal-code"
+                autoComplete="shipping postal-code"
                 required
                 maxLength={5}
                 value={address.zip}

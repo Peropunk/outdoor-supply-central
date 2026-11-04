@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Flag, MapPin, Package, ShieldCheck, Truck } from "lucide-react";
-import { GearPhoto } from "@/components/GearPhoto";
 import { ButtonLink, ConditionBadge, ListingGrid } from "@/components/ui";
 import { getCategory, getPackageSize } from "@/lib/catalog";
 import { getListing, searchListings } from "@/lib/listings";
 import { formatUSD } from "@/lib/money";
+import { Gallery } from "./Gallery";
 
 export async function generateMetadata(props: PageProps<"/item/[id]">): Promise<Metadata> {
   const { id } = await props.params;
@@ -32,27 +32,18 @@ export default async function ItemPage(props: PageProps<"/item/[id]">) {
         {listing.subcategory}
       </nav>
 
-      <div className="mt-4 grid gap-8 md:grid-cols-[1.1fr_1fr]">
-        <section aria-label="Photos">
-          <div className="snap-strip -mx-4 flex overflow-x-auto md:mx-0 md:grid md:grid-cols-2 md:gap-3 md:overflow-visible">
-            {listing.photos.map((photo, i) => (
-              <GearPhoto
-                key={i}
-                photo={photo}
-                size="lg"
-                priority={i === 0}
-                className={`w-full shrink-0 md:rounded-[var(--radius-card)] ${i === 0 ? "md:col-span-2" : ""}`}
-              />
-            ))}
-          </div>
-          {listing.photos.length > 1 && (
-            <p className="mt-2 text-center text-[14px] text-muted md:hidden">
-              Swipe for {listing.photos.length - 1} more {listing.photos.length === 2 ? "photo" : "photos"}
-            </p>
-          )}
+      {/* Photos stay pinned while the details scroll: beside them on desktop, sliding
+          up over them on phones. Block layout on phones, because a grid would limit
+          the pinned photo to its own row. */}
+      <div className="mt-4 md:grid md:grid-cols-[1.1fr_1fr] md:gap-8">
+        <section aria-label="Photos" className="sticky top-16 self-start sm:top-20 md:top-24">
+          <Gallery photos={listing.photos} />
         </section>
 
-        <section aria-labelledby="item-title">
+        <section
+          aria-labelledby="item-title"
+          className="relative z-10 -mx-4 rounded-t-2xl bg-canvas px-4 pt-5 md:static md:mx-0 md:rounded-none md:bg-transparent md:px-0 md:pt-0"
+        >
           <h1 id="item-title" className="text-2xl leading-snug sm:text-3xl">
             {listing.title}
           </h1>
