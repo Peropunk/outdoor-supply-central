@@ -9,7 +9,9 @@ export const metadata: Metadata = { title: "Sign in" };
 
 // Decision 1 default: Google or an emailed sign-in link (no passwords), then
 // three quick questions for new accounts. Uses Supabase Auth once configured.
-export default function SignInPage() {
+export default async function SignInPage(props: PageProps<"/signin">) {
+  const { next: rawNext } = await props.searchParams;
+  const next = typeof rawNext === "string" ? rawNext : undefined;
   return (
     <div className="mx-auto max-w-md px-4 pt-10">
       <h1 className="text-center text-3xl">Sign in or join</h1>
@@ -19,6 +21,7 @@ export default function SignInPage() {
         {isGoogleSignInEnabled && (
           <>
             <form action={signInWithGoogle}>
+              {next && <input type="hidden" name="next" value={next} />}
               <button type="submit" className={buttonClass("outline", "w-full normal-case tracking-normal")}>
                 <GoogleMark />
                 Continue with Google
@@ -31,7 +34,7 @@ export default function SignInPage() {
           </>
         )}
 
-        <EmailLinkForm />
+        <EmailLinkForm next={next} />
       </Card>
 
       <p className="mt-4 text-center text-[14px] text-muted">

@@ -2,8 +2,8 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { ACTIVITIES } from "@/lib/catalog";
-import { requireUser, type Intent } from "@/lib/auth";
+import { ACTIVITIES, normalizePhone } from "@/lib/catalog";
+import { rememberNext, requireUser, takeNext, type Intent } from "@/lib/auth";
 import { isGoogleSignInEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
@@ -14,9 +14,10 @@ async function callbackUrl() {
 
 // Sign-in ---------------------------------------------------------------------
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(formData: FormData) {
   if (!isSupabaseConfigured) redirect("/welcome");
   if (!isGoogleSignInEnabled) redirect("/signin");
+  await rememberNext(formData.get("next"));
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -35,6 +36,7 @@ export async function sendEmailLink(_prev: EmailLinkState, formData: FormData): 
     return { status: "error", message: "Enter a valid email address." };
   }
   if (!isSupabaseConfigured) redirect("/welcome");
+  await rememberNext(formData.get("next"));
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
@@ -90,7 +92,7 @@ export async function saveWelcome(formData: FormData) {
     .eq("id", user.id);
   if (error) redirect("/welcome?error=1");
 
-  redirect(destination);
+  redirect((await takeNext()) ?? destination);
 }
 
 // Account settings ------------------------------------------------------------
@@ -109,6 +111,9 @@ export async function updateAccount(formData: FormData) {
     zip: field("zip"),
   };
   const hasAddress = address.line1 && address.city && /^[A-Z]{2}$/.test(address.state) && /^\d{5}$/.test(address.zip);
+  const rawPhone = field("phone");
+  const phone = normalizePhone(rawPhone);
+  if (rawPhone && !phone) redirect("/account?error=phone");
 
   await supabase
     .from("profiles")
@@ -125,6 +130,7 @@ export async function updateAccount(formData: FormData) {
     await supabase.from("seller_addresses").upsert({
       user_id: user.id,
       ...address,
+      phone,
       name: address.name || user.displayName,
       updated_at: new Date().toISOString(),
     });

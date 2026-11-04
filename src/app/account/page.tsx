@@ -8,7 +8,15 @@ import { deleteAccount, signOut, updateAccount } from "../auth/actions";
 
 export const metadata: Metadata = { title: "Account settings" };
 
-type Address = { name: string; line1: string; line2: string | null; city: string; state: string; zip: string };
+type Address = {
+  name: string;
+  line1: string;
+  line2: string | null;
+  city: string;
+  state: string;
+  zip: string;
+  phone: string | null;
+};
 
 const PREVIEW_USER: CurrentUser = {
   id: "preview",
@@ -33,7 +41,7 @@ export default async function AccountPage(props: PageProps<"/account">) {
     const supabase = await createClient();
     const { data } = await supabase
       .from("seller_addresses")
-      .select("name, line1, line2, city, state, zip")
+      .select("name, line1, line2, city, state, zip, phone")
       .eq("user_id", user.id)
       .maybeSingle();
     address = data;
@@ -47,6 +55,12 @@ export default async function AccountPage(props: PageProps<"/account">) {
       {sp.saved === "1" && (
         <p role="status" className="mb-6 flex items-center gap-2 rounded-md bg-pine px-4 py-3 text-white">
           <CircleCheck className="size-5" aria-hidden="true" /> Saved.
+        </p>
+      )}
+
+      {sp.error === "phone" && (
+        <p role="alert" className="mb-6 rounded-md border border-alert/30 bg-alert/5 p-4 font-semibold text-alert">
+          Nothing was saved. Enter a 10-digit phone number, or leave it blank.
         </p>
       )}
 
@@ -98,6 +112,17 @@ export default async function AccountPage(props: PageProps<"/account">) {
                 name="line2"
                 autoComplete="address-line2"
                 defaultValue={address?.line2 ?? ""}
+                className={inputClass}
+              />
+            </Field>
+            <Field label="Phone" htmlFor="phone" hint="USPS requires it for labels. Buyers never see it.">
+              <input
+                id="phone"
+                name="phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                defaultValue={address?.phone ?? ""}
                 className={inputClass}
               />
             </Field>

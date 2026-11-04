@@ -10,14 +10,26 @@ export default async function SellPage() {
   let seller: SellerContext | null = null;
 
   if (isSupabaseConfigured) {
-    const user = await requireUser();
+    const user = await requireUser("/sell");
     const supabase = await createClient();
     const { data: address } = await supabase
       .from("seller_addresses")
-      .select("user_id")
+      .select("name, line1, line2, city, state, zip, phone")
       .eq("user_id", user.id)
       .maybeSingle();
-    seller = { id: user.id, needsAddress: !address, name: user.displayName, zip: user.shipFromZip ?? "" };
+    seller = {
+      id: user.id,
+      needsAddress: !address?.phone,
+      address: {
+        name: address?.name ?? user.displayName,
+        line1: address?.line1 ?? "",
+        line2: address?.line2 ?? "",
+        city: address?.city ?? "",
+        state: address?.state ?? "",
+        zip: address?.zip ?? user.shipFromZip ?? "",
+        phone: "",
+      },
+    };
   }
 
   return (

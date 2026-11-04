@@ -5,7 +5,7 @@ import { Mail, MailCheck } from "lucide-react";
 import { Field, buttonClass, inputClass } from "@/components/ui";
 import { sendEmailLink, type EmailLinkState } from "../auth/actions";
 
-export function EmailLinkForm() {
+export function EmailLinkForm({ next }: { next?: string }) {
   const [state, action, pending] = useActionState<EmailLinkState, FormData>(sendEmailLink, { status: "idle" });
 
   if (state.status === "sent") {
@@ -22,6 +22,7 @@ export function EmailLinkForm() {
 
   return (
     <form action={action} className="space-y-5">
+      {next && <input type="hidden" name="next" value={next} />}
       <Field label="Email" htmlFor="email" hint="We'll email you a link that signs you in.">
         <input
           id="email"

@@ -72,13 +72,15 @@ export function getCondition(id: ConditionId) {
 
 export type PackageSizeId = "small" | "medium" | "large" | "xlarge";
 
-// Decision 6 default: seller picks a package size when listing; the buyer sees
-// the live USPS rate at checkout. These estimates stand in until Shippo is
-// connected and are only used for previews.
+// Decision 6 default: seller picks a package size when listing; the buyer pays
+// the live USPS rate at checkout. Box limits come from the Shippo test: USPS
+// charges far more for bigger boxes (20 lb costs about $30 in an 18x14x10 box
+// and $137 in a 24x18x12 one). Estimates are mid-distance rates, for display only.
 export const PACKAGE_SIZES: {
   id: PackageSizeId;
   label: string;
   maxWeightLb: number;
+  box: { length: number; width: number; height: number };
   examples: string;
   estimateCents: number;
 }[] = [
@@ -86,31 +88,39 @@ export const PACKAGE_SIZES: {
     id: "small",
     label: "Small",
     maxWeightLb: 1,
+    box: { length: 10, width: 7, height: 3 },
     examples: "Headlamp, knife, gloves, lures",
-    estimateCents: 625,
+    estimateCents: 800,
   },
   {
     id: "medium",
     label: "Medium",
     maxWeightLb: 3,
+    box: { length: 12, width: 10, height: 4 },
     examples: "Jacket, water filter, stove, reel",
-    estimateCents: 995,
+    estimateCents: 1050,
   },
   {
     id: "large",
     label: "Large",
     maxWeightLb: 10,
+    box: { length: 16, width: 12, height: 8 },
     examples: "Sleeping bag, daypack, boots",
-    estimateCents: 1595,
+    estimateCents: 1650,
   },
   {
     id: "xlarge",
     label: "Extra large",
     maxWeightLb: 20,
-    examples: "Tent, backpacking pack, camp chair",
-    estimateCents: 2450,
+    box: { length: 18, width: 14, height: 10 },
+    examples: "Tent, packed backpacking pack",
+    estimateCents: 3000,
   },
 ];
+
+export function boxLabel({ box }: { box: { length: number; width: number; height: number } }) {
+  return `${box.length}×${box.width}×${box.height} in`;
+}
 
 export function getPackageSize(id: PackageSizeId) {
   return PACKAGE_SIZES.find((p) => p.id === id)!;
@@ -143,3 +153,10 @@ export const ACTIVITIES = [
 
 // Order status bar, shown to buyer and seller.
 export const ORDER_STEPS = ["Paid", "Label ready", "Shipped", "Delivered"] as const;
+
+/** A US phone number as 10 digits, or null if it isn't one. */
+export function normalizePhone(value: string) {
+  const digits = value.replace(/\D/g, "");
+  const national = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+  return /^\d{10}$/.test(national) ? national : null;
+}

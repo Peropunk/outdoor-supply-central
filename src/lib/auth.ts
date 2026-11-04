@@ -1,4 +1,5 @@
 import "server-only";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import type { ACTIVITIES } from "./catalog";
@@ -56,15 +57,41 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   };
 }
 
-/** Like getCurrentUser, but sends signed-out visitors to the sign-in page. */
-export async function requireUser(): Promise<CurrentUser> {
+/**
+ * Like getCurrentUser, but sends signed-out visitors to the sign-in page. Pass
+ * `returnTo` to bring them back to that page afterwards.
+ */
+export async function requireUser(returnTo?: string): Promise<CurrentUser> {
   const user = await getCurrentUser();
-  if (!user) redirect("/signin");
+  if (!user) redirect(returnTo ? `/signin?next=${encodeURIComponent(returnTo)}` : "/signin");
   return user;
+}
+
+const NEXT_COOKIE = "osc_next";
+
+/** Only ever a path on this site, so a sign-in link can't redirect elsewhere. */
+function safeNext(value: string | undefined) {
+  return value && value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") ? value : null;
+}
+
+/** Remembers where to go after sign-in. Google and email links can't carry it themselves. */
+export async function rememberNext(value: FormDataEntryValue | null) {
+  const next = safeNext(typeof value === "string" ? value : undefined);
+  if (!next) return;
+  (await cookies()).set(NEXT_COOKIE, next, { path: "/", maxAge: 3600, httpOnly: true, sameSite: "lax" });
+}
+
+/** The remembered page, once: reading it clears it. */
+export async function takeNext() {
+  const store = await cookies();
+  const next = safeNext(store.get(NEXT_COOKIE)?.value);
+  if (next) store.delete(NEXT_COOKIE);
+  return next;
 }
 
 /** New users answer the welcome questions first; returning users go to their dashboard. */
 export async function landingPathAfterSignIn(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data: profile } = await supabase.from("profiles").select("onboarded_at").eq("id", userId).single();
-  return profile?.onboarded_at ? "/dashboard" : "/welcome";
+  if (!profile?.onboarded_at) return "/welcome"; // saveWelcome picks up the remembered page
+  return (await takeNext()) ?? "/dashboard";
 }

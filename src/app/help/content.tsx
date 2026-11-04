@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { BANNED_ITEMS, CONDITIONS, PACKAGE_SIZES, SHIP_BY_DAYS, SHIP_REMINDER_DAY } from "@/lib/catalog";
+import { BANNED_ITEMS, CONDITIONS, PACKAGE_SIZES, SHIP_BY_DAYS, SHIP_REMINDER_DAY, boxLabel } from "@/lib/catalog";
 import { DEFAULT_COMMISSION_RATE, formatUSD, sellerEarnings } from "@/lib/money";
 
 // Help and policy pages (Chunk 6). Wording follows the open-decision defaults
@@ -86,7 +86,7 @@ export const HELP_PAGES: HelpPage[] = [
         <ul className="list-disc space-y-1 pl-6">
           {PACKAGE_SIZES.map((p) => (
             <li key={p.id}>
-              <strong>{p.label}</strong>, up to {p.maxWeightLb} lb: {p.examples}
+              <strong>{p.label}</strong>, up to {p.maxWeightLb} lb in a box up to {boxLabel(p)}: {p.examples}
             </li>
           ))}
         </ul>

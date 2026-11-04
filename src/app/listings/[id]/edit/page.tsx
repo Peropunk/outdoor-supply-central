@@ -5,7 +5,7 @@ import { CircleAlert } from "lucide-react";
 import { GearPhoto } from "@/components/GearPhoto";
 import { Card, Field, PageTitle, buttonClass, inputClass } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
-import { CONDITIONS, PACKAGE_SIZES, getCategory } from "@/lib/catalog";
+import { CONDITIONS, PACKAGE_SIZES, boxLabel, getCategory } from "@/lib/catalog";
 import { getListingsBySeller } from "@/lib/listings";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { updateListing } from "../../actions";
@@ -142,6 +142,7 @@ export default async function EditListingPage(props: PageProps<"/listings/[id]/e
                       {p.label} · up to {p.maxWeightLb} lb
                     </span>
                     <span className="block text-[15px] text-muted">{p.examples}</span>
+                    <span className="block text-[14px] text-muted">Box up to {boxLabel(p)}</span>
                   </span>
                 </label>
               ))}

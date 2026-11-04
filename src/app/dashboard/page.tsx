@@ -115,10 +115,10 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         {tab === "listings" &&
           (listings.length ? (
             listings.map((l) => (
-              <Card key={l.id} className="flex items-center gap-4">
+              <Card key={l.id} className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <GearPhoto photo={l.photos[0]} size="sm" className="w-20 shrink-0 rounded-md" />
-                <div className="min-w-0 flex-1">
-                  <Link href={`/item/${l.id}`} className="line-clamp-1 font-semibold text-ink">
+                <div className="min-w-0 flex-1 basis-40">
+                  <Link href={`/item/${l.id}`} className="line-clamp-2 font-semibold text-ink">
                     {l.title}
                   </Link>
                   <p className="flex flex-wrap items-center gap-2 text-[15px]">
@@ -227,7 +227,7 @@ const iconButton = "flex size-11 items-center justify-center rounded-md text-ink
 
 function ListingTools({ id, title, paused }: { id: string; title: string; paused: boolean }) {
   return (
-    <div className="flex shrink-0 items-center">
+    <div className="flex shrink-0 items-center justify-end max-sm:w-full">
       <Link href={`/listings/${id}/edit`} className={iconButton} aria-label={`Edit ${title}`}>
         <Pencil className="size-5" aria-hidden="true" />
       </Link>

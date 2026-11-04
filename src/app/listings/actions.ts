@@ -3,7 +3,7 @@
 import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { CATEGORIES, CONDITIONS, PACKAGE_SIZES } from "@/lib/catalog";
+import { CATEGORIES, CONDITIONS, PACKAGE_SIZES, normalizePhone } from "@/lib/catalog";
 import { LISTINGS_TAG } from "@/lib/listings-db";
 import { PHOTO_BUCKET, isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
@@ -26,7 +26,15 @@ export type ListingFields = {
   packageSize: string;
 };
 
-export type ShipFromAddress = { name: string; line1: string; line2: string; city: string; state: string; zip: string };
+export type ShipFromAddress = {
+  name: string;
+  line1: string;
+  line2: string;
+  city: string;
+  state: string;
+  zip: string;
+  phone: string;
+};
 
 export type ActionResult = { ok: true; id: string } | { ok: false; error: string };
 
@@ -47,6 +55,7 @@ function checkAddress(a: ShipFromAddress): string | null {
   if (!a.name.trim() || !a.line1.trim() || !a.city.trim()) return "Fill in your name, street and city.";
   if (!/^[A-Za-z]{2}$/.test(a.state.trim())) return "Use the 2-letter state code, like OR.";
   if (!/^\d{5}$/.test(a.zip.trim())) return "Enter a 5-digit ZIP code.";
+  if (!normalizePhone(a.phone)) return "Enter a 10-digit phone number. USPS needs it for your labels.";
   return null;
 }
 
@@ -94,10 +103,10 @@ export async function createListing(input: {
 
   const { data: existing } = await supabase
     .from("seller_addresses")
-    .select("user_id")
+    .select("phone")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!existing) {
+  if (!existing?.phone) {
     if (!input.address) return { ok: false, error: "Add the address you'll ship from." };
     const addressError = checkAddress(input.address);
     if (addressError) return { ok: false, error: addressError };
@@ -110,6 +119,7 @@ export async function createListing(input: {
       city: a.city.trim(),
       state: a.state.trim().toUpperCase(),
       zip: a.zip.trim(),
+      phone: normalizePhone(a.phone),
       updated_at: new Date().toISOString(),
     });
     if (error) return { ok: false, error: "We couldn't save your address. Please try again." };

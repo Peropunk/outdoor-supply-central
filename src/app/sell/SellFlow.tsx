@@ -9,7 +9,9 @@ import {
   CATEGORIES,
   CONDITIONS,
   PACKAGE_SIZES,
+  boxLabel,
   getCategory,
+  normalizePhone,
   type ConditionId,
   type PackageSizeId,
 } from "@/lib/catalog";
@@ -23,9 +25,9 @@ const STEPS = ["Photos", "Details", "Price and package", "Review"] as const;
 const MAX_PHOTOS = 10;
 
 /** The signed-in seller when Supabase is connected; null in preview mode. */
-export type SellerContext = { id: string; needsAddress: boolean; name: string; zip: string };
+export type SellerContext = { id: string; needsAddress: boolean; address: Address };
 
-type Address = { name: string; line1: string; line2: string; city: string; state: string; zip: string };
+type Address = { name: string; line1: string; line2: string; city: string; state: string; zip: string; phone: string };
 
 type Draft = {
   photos: { url: string; size: number; blob: Blob }[];
@@ -54,7 +56,7 @@ const EMPTY: Draft = {
   price: "",
   packageSize: "",
   agreed: false,
-  address: { name: "", line1: "", line2: "", city: "", state: "", zip: "" },
+  address: { name: "", line1: "", line2: "", city: "", state: "", zip: "", phone: "" },
 };
 
 function problems(step: number, d: Draft, needsAddress: boolean): string[] {
@@ -78,6 +80,7 @@ function problems(step: number, d: Draft, needsAddress: boolean): string[] {
     if (!a.name.trim() || !a.line1.trim() || !a.city.trim()) out.push("Fill in your name, street and city.");
     if (!/^[A-Za-z]{2}$/.test(a.state.trim())) out.push("Use the 2-letter state code, like OR.");
     if (!/^\d{5}$/.test(a.zip.trim())) out.push("Enter a 5-digit ZIP code.");
+    if (!normalizePhone(a.phone)) out.push("Enter a 10-digit phone number. USPS needs it for your labels.");
   }
   if (step === 3 && !d.agreed) out.push("Confirm the item isn't on the banned list.");
   return out;
@@ -85,9 +88,7 @@ function problems(step: number, d: Draft, needsAddress: boolean): string[] {
 
 export function SellFlow({ seller }: { seller: SellerContext | null }) {
   const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<Draft>(() =>
-    seller ? { ...EMPTY, address: { ...EMPTY.address, name: seller.name, zip: seller.zip } } : EMPTY,
-  );
+  const [draft, setDraft] = useState<Draft>(() => (seller ? { ...EMPTY, address: seller.address } : EMPTY));
   const [errors, setErrors] = useState<string[]>([]);
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState<{ id: string | null } | null>(null);
@@ -516,6 +517,7 @@ function PriceStep({ draft, update }: StepProps) {
                   {p.label} · up to {p.maxWeightLb} lb
                 </span>
                 <span className="block text-[15px] text-muted">{p.examples}</span>
+                <span className="block text-[14px] text-muted">Box up to {boxLabel(p)}</span>
                 <span className="block text-[14px] text-muted">Buyer pays about {formatUSD(p.estimateCents)}</span>
               </span>
             </label>
@@ -584,7 +586,7 @@ function AddressCard({ draft, update }: StepProps) {
       <div>
         <p className="font-semibold">Where will you ship from?</p>
         <p className="text-[15px] text-muted">
-          Printed on your USPS labels. Buyers only see your city and state. We&apos;ll remember it for next time.
+          Used for your USPS labels. Buyers only see your city and state. We&apos;ll remember it for next time.
         </p>
       </div>
       <Field label="Name on labels" htmlFor="ship-name">
@@ -611,6 +613,17 @@ function AddressCard({ draft, update }: StepProps) {
           autoComplete="address-line2"
           value={a.line2}
           onChange={(e) => set({ line2: e.target.value })}
+          className={inputClass}
+        />
+      </Field>
+      <Field label="Phone" htmlFor="ship-phone" hint="USPS requires it for labels. Buyers never see it.">
+        <input
+          id="ship-phone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          value={a.phone}
+          onChange={(e) => set({ phone: e.target.value })}
           className={inputClass}
         />
       </Field>
