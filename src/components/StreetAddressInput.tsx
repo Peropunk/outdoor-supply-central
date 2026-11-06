@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type InputHTMLAttributes, type KeyboardEvent } from "react";
-import { MapPin } from "lucide-react";
+import { LoaderCircle, MapPin } from "lucide-react";
 import { inputClass } from "@/components/ui";
 
 // Street address field with US address suggestions from Geoapify. Picking a
@@ -11,7 +11,7 @@ import { inputClass } from "@/components/ui";
 
 const KEY = process.env.NEXT_PUBLIC_GEOAPIFY_KEY;
 const MIN_CHARS = 4;
-const WAIT_MS = 300;
+const WAIT_MS = 200;
 
 export type PickedAddress = { line1: string; city: string; state: string; zip: string };
 type Suggestion = PickedAddress & { id: string; label: string };
@@ -43,6 +43,8 @@ export function StreetAddressInput({ value, onChange, onPick, onKeyDown, onBlur,
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const request = useRef<AbortController>(undefined);
   const lastText = useRef("");
+  const input = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(
     () => () => {
@@ -61,8 +63,12 @@ export function StreetAddressInput({ value, onChange, onPick, onKeyDown, onBlur,
     if (!KEY || text.trim().length < MIN_CHARS) {
       setItems([]);
       setOpen(false);
+      setLoading(false);
       return;
     }
+    // Geoapify can take a couple of seconds, so say we're looking straight away.
+    setLoading(true);
+    if (document.activeElement === input.current) setOpen(true);
     timer.current = setTimeout(async () => {
       const controller = new AbortController();
       request.current = controller;
@@ -77,14 +83,19 @@ export function StreetAddressInput({ value, onChange, onPick, onKeyDown, onBlur,
           apiKey: KEY,
         }).toString();
         const res = await fetch(url, { signal: controller.signal });
-        if (!res.ok) return;
-        const data: { results?: Result[] } = await res.json();
+        const data: { results?: Result[] } = res.ok ? await res.json() : {};
         const found = toSuggestions(data.results ?? [], text);
         setItems(found);
         setActive(-1);
-        setOpen(found.length > 0);
+        setOpen(found.length > 0 && document.activeElement === input.current);
+        setLoading(false);
       } catch {
-        // Aborted or offline: the field still works as plain text.
+        // Aborted (a newer keystroke took over) or offline: the field still works as plain text.
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          setItems([]);
+          setOpen(false);
+        }
       }
     }, WAIT_MS);
   }
@@ -96,6 +107,7 @@ export function StreetAddressInput({ value, onChange, onPick, onKeyDown, onBlur,
     onPick({ line1: s.line1, city: s.city, state: s.state, zip: s.zip });
     setItems([]);
     setOpen(false);
+    setLoading(false);
   }
 
   function handleKey(e: KeyboardEvent<HTMLInputElement>) {
@@ -115,12 +127,13 @@ export function StreetAddressInput({ value, onChange, onPick, onKeyDown, onBlur,
     }
   }
 
-  const showList = open && items.length > 0;
+  const showList = open && (items.length > 0 || loading);
 
   return (
     <div className="relative">
       <input
         {...rest}
+        ref={input}
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
@@ -160,7 +173,19 @@ export function StreetAddressInput({ value, onChange, onPick, onKeyDown, onBlur,
               </li>
             ))}
           </ul>
-          <p className="border-t border-line px-3 py-1 text-right text-[12px] text-muted">Powered by Geoapify</p>
+          <div
+            className={`flex items-center justify-between gap-3 px-3 py-1.5 text-[12px] text-muted ${items.length ? "border-t border-line" : ""}`}
+          >
+            <span role="status" className="flex items-center gap-1.5 text-[14px]">
+              {loading && (
+                <>
+                  <LoaderCircle className="size-4 animate-spin text-trail" aria-hidden="true" />
+                  Finding addresses…
+                </>
+              )}
+            </span>
+            <span>Powered by Geoapify</span>
+          </div>
         </div>
       )}
     </div>
