@@ -4,8 +4,11 @@ import { notFound } from "next/navigation";
 import { CircleCheck, MessageCircle, QrCode, Truck } from "lucide-react";
 import { GearPhoto } from "@/components/GearPhoto";
 import { Card, PreviewNotice, StatusBar, buttonClass } from "@/components/ui";
-import { currentStepIndex, getOrder } from "@/lib/orders";
+import { requireUser } from "@/lib/auth";
 import { formatUSD } from "@/lib/money";
+import { currentStepIndex, getOrder } from "@/lib/orders";
+import { getOrderForUser } from "@/lib/orders-db";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export const metadata: Metadata = { title: "Order" };
 
@@ -20,13 +23,14 @@ const dayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "shor
 export default async function OrderPage(props: PageProps<"/orders/[number]">) {
   const { number } = await props.params;
   const sp = await props.searchParams;
-  const found = await getOrder(number);
+  // With Supabase connected, the page shows whichever side the signed-in user is
+  // on. In preview mode `?view=seller` switches the sample order to the seller side.
+  const live = isSupabaseConfigured;
+  const user = live ? await requireUser(`/orders/${number}`) : null;
+  const found = user ? await getOrderForUser(number, user.id) : await getOrder(number);
   if (!found) notFound();
   const { order, listing } = found;
-
-  // Chunk 2 adds sign-in; the page then shows the buyer or seller view
-  // depending on who is looking. `?view=seller` previews the seller side.
-  const asSeller = sp.view === "seller";
+  const asSeller = "role" in found ? found.role === "seller" : sp.view === "seller";
   const step = currentStepIndex(order.status);
   const total = order.itemCents + order.shippingCents;
 
@@ -46,7 +50,7 @@ export default async function OrderPage(props: PageProps<"/orders/[number]">) {
 
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-3xl">Order {order.number}</h1>
-        <div className="flex gap-1 text-[15px]">
+        <div className={`flex gap-1 text-[15px] ${live ? "hidden" : ""}`}>
           <Link
             href={`/orders/${order.number}`}
             className={`rounded-full px-3 py-1 no-underline ${!asSeller ? "bg-pine text-white" : "text-olive"}`}
@@ -66,6 +70,16 @@ export default async function OrderPage(props: PageProps<"/orders/[number]">) {
       <Card className="mt-6">
         <StatusBar current={step} />
       </Card>
+
+      {live && asSeller && step === 0 && (
+        <Card className="mt-4 border-trail">
+          <h2 className="text-xl">Ship it by {dayFmt.format(new Date(order.shipBy))}</h2>
+          <p className="mt-1 text-muted">
+            Your prepaid USPS label and QR code will appear here and in your email. Pack the item snugly in a box no
+            bigger than its package size.
+          </p>
+        </Card>
+      )}
 
       {asSeller && step === 1 && (
         <Card className="mt-4 border-trail">
@@ -151,7 +165,9 @@ export default async function OrderPage(props: PageProps<"/orders/[number]">) {
       </div>
 
       <div className="mt-8">
-        <PreviewNotice>sample order. Real orders appear here after Stripe and Shippo are connected.</PreviewNotice>
+        {!live && (
+          <PreviewNotice>sample order. Real orders appear here after Stripe and Shippo are connected.</PreviewNotice>
+        )}
       </div>
     </div>
   );

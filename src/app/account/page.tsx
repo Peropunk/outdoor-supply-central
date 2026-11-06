@@ -29,6 +29,7 @@ const PREVIEW_USER: CurrentUser = {
   shipFromZip: null,
   role: "member",
   onboarded: true,
+  payoutsEnabled: false,
 };
 
 export default async function AccountPage(props: PageProps<"/account">) {

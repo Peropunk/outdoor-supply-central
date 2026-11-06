@@ -6,15 +6,30 @@ import { ButtonLink, ConditionBadge } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { getPackageSize } from "@/lib/catalog";
 import { getListing } from "@/lib/listings";
+import { isStripeConfigured } from "@/lib/stripe";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { CheckoutForm } from "../CheckoutForm";
 
 export const metadata: Metadata = { title: "Checkout" };
 
 export default async function CheckoutPage(props: PageProps<"/checkout/[id]">) {
-  const { id } = await props.params;
+  const [{ id }, sp] = await Promise.all([props.params, props.searchParams]);
   const listing = await getListing(id);
-  if (!listing || listing.status !== "active") notFound();
+  if (!listing || (listing.status !== "active" && listing.status !== "reserved")) notFound();
+  if (listing.status === "reserved") {
+    return (
+      <div className="mx-auto max-w-lg px-4 pt-16 text-center">
+        <h1 className="text-3xl">Someone else is checking out</h1>
+        <p className="mt-2 text-muted">
+          Another buyer is paying for {listing.title} right now. If they don&apos;t finish, it&apos;s back on sale
+          within 30 minutes.
+        </p>
+        <ButtonLink href="/browse" className="mt-6">
+          Keep browsing
+        </ButtonLink>
+      </div>
+    );
+  }
 
   const live = isSupabaseConfigured;
   const buyer = live ? await requireUser(`/checkout/${id}`) : null;
@@ -39,6 +54,8 @@ export default async function CheckoutPage(props: PageProps<"/checkout/[id]">) {
         priceCents={listing.priceCents}
         estimateCents={getPackageSize(listing.packageSize).estimateCents}
         live={live}
+        paymentsReady={isStripeConfigured}
+        cancelled={sp.cancelled === "1"}
         defaultName={buyer?.displayName ?? ""}
         summary={
           <div className="flex gap-4">

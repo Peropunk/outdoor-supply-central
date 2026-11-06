@@ -52,7 +52,11 @@ export default async function ItemPage(props: PageProps<"/item/[id]">) {
 
           {!available && (
             <p className="mt-3 rounded-md bg-sand px-4 py-3 font-semibold text-boot">
-              {listing.status === "sold" ? "This item has sold." : "This item isn't available right now."}
+              {listing.status === "sold"
+                ? "This item has sold."
+                : listing.status === "reserved"
+                  ? "Someone's checking out this item. If they don't finish, it's back on sale within 30 minutes."
+                  : "This item isn't available right now."}
             </p>
           )}
 

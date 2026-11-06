@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import { CircleAlert, Lock, ShieldCheck, Truck } from "lucide-react";
 import { Card, Field, PreviewNotice, buttonClass, inputClass } from "@/components/ui";
 import { formatUSD } from "@/lib/money";
-import { quoteShipping, type QuoteResult, type ShipTo } from "./actions";
+import { quoteShipping, startCheckout, type QuoteResult, type ShipTo } from "./actions";
 
 const STATES =
   "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split(
@@ -19,6 +19,8 @@ export function CheckoutForm({
   priceCents,
   estimateCents,
   live,
+  paymentsReady,
+  cancelled,
   defaultName,
   summary,
 }: {
@@ -27,6 +29,10 @@ export function CheckoutForm({
   estimateCents: number;
   /** Supabase is connected. In preview mode the rate is an estimate and Pay opens a sample order. */
   live: boolean;
+  /** Stripe is connected, so Pay opens Stripe Checkout. */
+  paymentsReady: boolean;
+  /** The buyer came back from Stripe without paying. */
+  cancelled: boolean;
   defaultName: string;
   summary: ReactNode;
 }) {
@@ -41,6 +47,7 @@ export function CheckoutForm({
   const [quote, setQuote] = useState<Quote | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   // A rate only holds for the address it was quoted for.
   function update(patch: Partial<ShipTo>) {
@@ -64,6 +71,23 @@ export function CheckoutForm({
     setBusy(false);
   }
 
+  async function pay() {
+    setPaying(true);
+    setError("");
+    try {
+      const result = await startCheckout(listingId, address);
+      if (result.ok) {
+        window.location.assign(result.url);
+        return;
+      }
+      setError(result.error);
+      setQuote(null);
+    } catch {
+      setError("We couldn't open the payment page. Please try again.");
+    }
+    setPaying(false);
+  }
+
   const shippingCents = live ? quote?.shippingCents : estimateCents;
   const totalCents = shippingCents == null ? null : priceCents + shippingCents;
 
@@ -73,10 +97,14 @@ export function CheckoutForm({
       Pay {formatUSD(totalCents ?? priceCents)}
     </Link>
   ) : quote ? (
-    // Chunk 4: this opens Stripe Checkout once the Stripe test keys are in place.
-    <button type="button" disabled className={buttonClass("primary", "w-full")}>
+    <button
+      type="button"
+      onClick={pay}
+      disabled={!paymentsReady || paying}
+      className={buttonClass("primary", "w-full")}
+    >
       <Lock className="size-4" aria-hidden="true" />
-      Pay {formatUSD(totalCents ?? priceCents)}
+      {paying ? "Opening secure checkout…" : `Pay ${formatUSD(totalCents ?? priceCents)}`}
     </button>
   ) : (
     <button type="submit" disabled={busy} className={buttonClass("primary", "w-full")}>
@@ -177,8 +205,13 @@ export function CheckoutForm({
             the USPS rate is an estimate for the item&apos;s package size, and Pay opens a sample order.
           </PreviewNotice>
         )}
-        {live && quote && (
-          <PreviewNotice>the Pay button turns on once Stripe is connected, later in Chunk 4.</PreviewNotice>
+        {live && quote && !paymentsReady && (
+          <PreviewNotice>the Pay button turns on once Stripe is connected.</PreviewNotice>
+        )}
+        {cancelled && !error && (
+          <p role="status" className="rounded-md bg-sand p-4">
+            Checkout cancelled. You weren&apos;t charged, and the item is back on sale.
+          </p>
         )}
 
         <div className="hidden md:block">{action}</div>

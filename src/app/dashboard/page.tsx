@@ -7,8 +7,10 @@ import { requireUser } from "@/lib/auth";
 import { SAMPLE_SELLER_ID, getListingsBySeller, type ListingStatus } from "@/lib/listings";
 import { formatUSD } from "@/lib/money";
 import { currentStepIndex, getOrders } from "@/lib/orders";
+import { getOrdersForUser } from "@/lib/orders-db";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { deleteListing, setListingPaused } from "../listings/actions";
+import { openStripeDashboard, startPayoutSetup } from "../payouts/actions";
 
 export const metadata: Metadata = { title: "My dashboard" };
 
@@ -35,10 +37,13 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const live = isSupabaseConfigured;
   const user = live ? await requireUser() : null;
 
-  // Real listings come from Supabase. Sales, payouts and purchases stay on
-  // sample data in preview mode and are empty until checkout lands (Chunk 4).
+  // With Supabase connected everything is the signed-in user's own; preview
+  // mode shows the sample seller.
   const sellerId = user?.id ?? SAMPLE_SELLER_ID;
-  const [listings, orders] = await Promise.all([getListingsBySeller(sellerId), live ? [] : getOrders()]);
+  const [listings, orders] = await Promise.all([
+    getListingsBySeller(sellerId),
+    user ? getOrdersForUser(user.id) : getOrders(),
+  ]);
   const sales = orders.filter(({ listing }) => listing.seller.id === sellerId);
   const toShip = sales.filter(({ order }) => order.status === "label_ready" || order.status === "paid");
   const purchases = orders.filter(({ listing }) => listing.seller.id !== sellerId);
@@ -138,6 +143,9 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
             <Empty text="You haven't listed anything yet. It takes about three minutes from your phone." />
           ))}
 
+        {tab === "payouts" && user && (
+          <PayoutStatus enabled={user.payoutsEnabled} result={typeof sp.payouts === "string" ? sp.payouts : null} />
+        )}
         {tab === "payouts" && live && !sales.length && <Empty text="Payouts show here once your first sale ships." />}
 
         {tab === "payouts" && (!live || sales.length > 0) && (
@@ -166,10 +174,12 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                   <p className="text-[14px] text-muted">Released at USPS&apos;s first scan</p>
                 </div>
               </dl>
-              <a href="#" className={buttonClass("outline", "mt-5 w-full sm:w-auto")}>
-                Open my Stripe payouts
-                <ExternalLink className="size-4" aria-hidden="true" />
-              </a>
+              {!live && (
+                <a href="#" className={buttonClass("outline", "mt-5 w-full sm:w-auto")}>
+                  Open my Stripe payouts
+                  <ExternalLink className="size-4" aria-hidden="true" />
+                </a>
+              )}
             </Card>
             {sales.map(({ order, listing }) => (
               <Card key={order.number} className="flex justify-between gap-4">
@@ -204,7 +214,9 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
 
       <div className="mt-8">
         {live ? (
-          <PreviewNotice>sales, payouts and purchases appear here once checkout goes live in Chunk 4.</PreviewNotice>
+          <PreviewNotice>
+            USPS labels, tracking and payouts to sellers&apos; banks arrive in the next update (Chunk 5).
+          </PreviewNotice>
         ) : (
           <PreviewNotice>
             sample seller data. Your own listings and sales show here once Supabase is connected.
@@ -254,5 +266,49 @@ function ListingTools({ id, title, paused }: { id: string; title: string; paused
         </form>
       </details>
     </div>
+  );
+}
+
+const PAYOUT_MESSAGES: Record<string, string> = {
+  ready: "You're all set. Stripe will pay your share after USPS scans each package.",
+  pending: "Stripe still needs a few details, or is checking what you sent. Pick up where you left off below.",
+  error: "We couldn't reach Stripe just now. Please try again.",
+};
+
+/** Stripe payout setup: required before a seller's first listing goes live. */
+function PayoutStatus({ enabled, result }: { enabled: boolean; result: string | null }) {
+  return (
+    <Card className="space-y-3">
+      {result && PAYOUT_MESSAGES[result] && (
+        <p role="status" className={result === "error" ? "font-semibold text-alert" : "font-semibold text-pine"}>
+          {PAYOUT_MESSAGES[result]}
+        </p>
+      )}
+      {enabled ? (
+        <>
+          <h2 className="text-xl">Payouts are set up</h2>
+          <p className="text-muted">See payouts, change your bank account or get tax forms in your Stripe dashboard.</p>
+          <form action={openStripeDashboard}>
+            <button type="submit" className={buttonClass("outline", "w-full sm:w-auto")}>
+              Open my Stripe payouts
+              <ExternalLink className="size-4" aria-hidden="true" />
+            </button>
+          </form>
+        </>
+      ) : (
+        <>
+          <h2 className="text-xl">Set up payouts to start selling</h2>
+          <p className="text-muted">
+            Stripe pays your share straight to your bank. It takes a few minutes: Stripe asks for details like your
+            name, date of birth and bank account. We never see them.
+          </p>
+          <form action={startPayoutSetup}>
+            <button type="submit" className={buttonClass("primary", "w-full sm:w-auto")}>
+              Set up payouts with Stripe
+            </button>
+          </form>
+        </>
+      )}
+    </Card>
   );
 }
