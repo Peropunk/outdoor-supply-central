@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { CircleAlert, Lock, ShieldCheck, Truck } from "lucide-react";
+import { StreetAddressInput } from "@/components/StreetAddressInput";
 import { Card, Field, PreviewNotice, buttonClass, inputClass } from "@/components/ui";
 import { formatUSD } from "@/lib/money";
 import { quoteShipping, startCheckout, type QuoteResult, type ShipTo } from "./actions";
@@ -130,14 +131,14 @@ export function CheckoutForm({
             />
           </Field>
           <Field label="Street address" htmlFor="line1">
-            <input
+            <StreetAddressInput
               id="line1"
               name="address-line1"
               autoComplete="shipping address-line1"
               required
               value={address.line1}
-              onChange={(e) => update({ line1: e.target.value })}
-              className={inputClass}
+              onChange={(line1) => update({ line1 })}
+              onPick={update}
             />
           </Field>
           <Field label="Apartment, suite (optional)" htmlFor="line2">

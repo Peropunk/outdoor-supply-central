@@ -5,18 +5,9 @@ import { requireUser, type CurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import { deleteAccount, signOut, updateAccount } from "../auth/actions";
+import { AddressFields, type SavedAddress } from "./AddressFields";
 
 export const metadata: Metadata = { title: "Account settings" };
-
-type Address = {
-  name: string;
-  line1: string;
-  line2: string | null;
-  city: string;
-  state: string;
-  zip: string;
-  phone: string | null;
-};
 
 const PREVIEW_USER: CurrentUser = {
   id: "preview",
@@ -35,7 +26,7 @@ const PREVIEW_USER: CurrentUser = {
 export default async function AccountPage(props: PageProps<"/account">) {
   const sp = await props.searchParams;
   let user = PREVIEW_USER;
-  let address: Address | null = null;
+  let address: SavedAddress | null = null;
 
   if (isSupabaseConfigured) {
     user = await requireUser();
@@ -95,70 +86,7 @@ export default async function AccountPage(props: PageProps<"/account">) {
           <Card className="space-y-5">
             <h2 className="text-xl">Ship-from address</h2>
             <p className="text-[15px] text-muted">Printed on your USPS labels. Only you and USPS see it.</p>
-            <Field label="Name on labels" htmlFor="name">
-              <input id="name" name="name" autoComplete="name" defaultValue={address?.name} className={inputClass} />
-            </Field>
-            <Field label="Street address" htmlFor="line1">
-              <input
-                id="line1"
-                name="line1"
-                autoComplete="address-line1"
-                defaultValue={address?.line1}
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Apartment, suite (optional)" htmlFor="line2">
-              <input
-                id="line2"
-                name="line2"
-                autoComplete="address-line2"
-                defaultValue={address?.line2 ?? ""}
-                className={inputClass}
-              />
-            </Field>
-            <Field label="Phone" htmlFor="phone" hint="USPS requires it for labels. Buyers never see it.">
-              <input
-                id="phone"
-                name="phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                defaultValue={address?.phone ?? ""}
-                className={inputClass}
-              />
-            </Field>
-            <div className="grid grid-cols-[1fr_80px_110px] gap-3">
-              <Field label="City" htmlFor="city">
-                <input
-                  id="city"
-                  name="city"
-                  autoComplete="address-level2"
-                  defaultValue={address?.city}
-                  className={inputClass}
-                />
-              </Field>
-              <Field label="State" htmlFor="state">
-                <input
-                  id="state"
-                  name="state"
-                  autoComplete="address-level1"
-                  maxLength={2}
-                  defaultValue={address?.state}
-                  className={`${inputClass} uppercase`}
-                />
-              </Field>
-              <Field label="ZIP" htmlFor="zip">
-                <input
-                  id="zip"
-                  name="zip"
-                  inputMode="numeric"
-                  autoComplete="postal-code"
-                  maxLength={5}
-                  defaultValue={address?.zip ?? user.shipFromZip ?? ""}
-                  className={inputClass}
-                />
-              </Field>
-            </div>
+            <AddressFields address={address} fallbackZip={user.shipFromZip ?? ""} />
           </Card>
 
           <button type="submit" className={buttonClass("primary", "w-full sm:w-auto")} disabled={!live}>

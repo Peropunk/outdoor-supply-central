@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Camera, ChevronLeft, CircleAlert, PartyPopper, Star, X } from "lucide-react";
+import { StreetAddressInput } from "@/components/StreetAddressInput";
 import { Button, ConditionBadge, Field, PreviewNotice, buttonClass, inputClass } from "@/components/ui";
 import {
   BANNED_ITEMS,
@@ -599,12 +600,12 @@ function AddressCard({ draft, update }: StepProps) {
         />
       </Field>
       <Field label="Street address" htmlFor="ship-line1">
-        <input
+        <StreetAddressInput
           id="ship-line1"
           autoComplete="address-line1"
           value={a.line1}
-          onChange={(e) => set({ line1: e.target.value })}
-          className={inputClass}
+          onChange={(line1) => set({ line1 })}
+          onPick={set}
         />
       </Field>
       <Field label="Apartment, suite (optional)" htmlFor="ship-line2">
