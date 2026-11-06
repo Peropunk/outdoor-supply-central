@@ -2,16 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { PageTitle } from "@/components/ui";
-import { HELP_PAGES } from "./content";
+import { getHelpPages } from "./content";
 
 export const metadata: Metadata = { title: "Help" };
 
-export default function HelpIndex() {
+export default async function HelpIndex() {
+  const pages = await getHelpPages();
   return (
     <div className="mx-auto max-w-2xl px-4 pt-8">
       <PageTitle sub="Fees, shipping, condition grades and the house rules.">Help</PageTitle>
       <ul className="divide-y divide-line rounded-[var(--radius-card)] border border-line bg-paper">
-        {HELP_PAGES.map((p) => (
+        {pages.map((p) => (
           <li key={p.slug}>
             <Link
               href={`/help/${p.slug}`}

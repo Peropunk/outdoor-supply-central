@@ -24,6 +24,8 @@ export type CurrentUser = {
   onboarded: boolean;
   /** Stripe has accepted the seller's payout details, so they can be paid. */
   payoutsEnabled: boolean;
+  /** An admin suspended the account: no listing or buying until it's lifted. */
+  suspended: boolean;
 };
 
 /** The signed-in user, or null when signed out or in preview mode. */
@@ -41,7 +43,9 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, city, state, intent, activities, ship_from_zip, role, onboarded_at, payouts_enabled")
+    .select(
+      "display_name, city, state, intent, activities, ship_from_zip, role, onboarded_at, payouts_enabled, suspended_at",
+    )
     .eq("id", user.id)
     .single();
 
@@ -57,6 +61,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     role: profile?.role ?? "member",
     onboarded: Boolean(profile?.onboarded_at),
     payoutsEnabled: Boolean(profile?.payouts_enabled),
+    suspended: Boolean(profile?.suspended_at),
   };
 }
 

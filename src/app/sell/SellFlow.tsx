@@ -87,7 +87,8 @@ function problems(step: number, d: Draft, needsAddress: boolean): string[] {
   return out;
 }
 
-export function SellFlow({ seller }: { seller: SellerContext | null }) {
+/** `rate` is the admin's commission setting, so "You earn" matches what the sale will pay. */
+export function SellFlow({ seller, rate = DEFAULT_COMMISSION_RATE }: { seller: SellerContext | null; rate?: number }) {
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState<Draft>(() => (seller ? { ...EMPTY, address: seller.address } : EMPTY));
   const [errors, setErrors] = useState<string[]>([]);
@@ -238,8 +239,8 @@ export function SellFlow({ seller }: { seller: SellerContext | null }) {
       <div className="mt-6 space-y-6">
         {step === 0 && <PhotosStep draft={draft} update={update} />}
         {step === 1 && <DetailsStep draft={draft} update={update} />}
-        {step === 2 && <PriceStep draft={draft} update={update} />}
-        {step === 3 && <ReviewStep draft={draft} update={update} needsAddress={needsAddress} />}
+        {step === 2 && <PriceStep draft={draft} update={update} rate={rate} />}
+        {step === 3 && <ReviewStep draft={draft} update={update} needsAddress={needsAddress} rate={rate} />}
       </div>
 
       {errors.length > 0 && (
@@ -466,7 +467,7 @@ function DetailsStep({ draft, update }: StepProps) {
   );
 }
 
-function PriceStep({ draft, update }: StepProps) {
+function PriceStep({ draft, update, rate }: StepProps & { rate: number }) {
   const cents = dollarsToCents(draft.price);
   return (
     <>
@@ -485,9 +486,9 @@ function PriceStep({ draft, update }: StepProps) {
       </Field>
       <div className="rounded-[var(--radius-card)] bg-pine p-5 text-white" aria-live="polite">
         <p className="label-caps text-[13px] text-white/80">You earn</p>
-        <p className="mt-1 text-4xl font-bold">{formatUSD(sellerEarnings(cents))}</p>
+        <p className="mt-1 text-4xl font-bold">{formatUSD(sellerEarnings(cents, rate))}</p>
         <p className="mt-1 text-[15px] text-white/85">
-          {formatUSD(cents)} price − {formatUSD(commissionFor(cents))} fee ({Math.round(DEFAULT_COMMISSION_RATE * 100)}
+          {formatUSD(cents)} price − {formatUSD(commissionFor(cents, rate))} fee ({Math.round(rate * 10_000) / 100}
           %). The buyer pays shipping.
         </p>
       </div>
@@ -529,7 +530,7 @@ function PriceStep({ draft, update }: StepProps) {
   );
 }
 
-function ReviewStep({ draft, update, needsAddress }: StepProps & { needsAddress: boolean }) {
+function ReviewStep({ draft, update, needsAddress, rate }: StepProps & { needsAddress: boolean; rate: number }) {
   const cents = dollarsToCents(draft.price);
   const pkg = PACKAGE_SIZES.find((p) => p.id === draft.packageSize);
   return (
@@ -551,7 +552,7 @@ function ReviewStep({ draft, update, needsAddress }: StepProps & { needsAddress:
             {draft.subcategory && ` · ${draft.subcategory}`} · {draft.photos.length}{" "}
             {draft.photos.length === 1 ? "photo" : "photos"} · {pkg?.label} package
           </p>
-          <p className="font-semibold text-pine">You earn {formatUSD(sellerEarnings(cents))}</p>
+          <p className="font-semibold text-pine">You earn {formatUSD(sellerEarnings(cents, rate))}</p>
         </div>
       </div>
 

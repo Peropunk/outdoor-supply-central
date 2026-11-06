@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 // Seller and reporting actions for listings (Chunk 3). Every action checks the
 // signed-in user here, and row level security checks again in the database.
 
+const SUSPENDED = "Your account is suspended, so you can't list items right now. Reply to our email to sort it out.";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_PHOTOS = 10;
 
@@ -87,6 +88,7 @@ export async function createListing(input: {
 }): Promise<ActionResult> {
   if (!isSupabaseConfigured) return { ok: false, error: "Listings save once Supabase is connected." };
   const user = await requireUser();
+  if (user.suspended) return { ok: false, error: SUSPENDED };
   const supabase = await createClient();
 
   if (!UUID.test(input.id)) return { ok: false, error: "Something went wrong. Please try again." };
@@ -106,7 +108,7 @@ export async function createListing(input: {
     .select("phone")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (!existing?.phone) {
+  if (!normalizePhone(existing?.phone ?? "")) {
     if (!input.address) return { ok: false, error: "Add the address you'll ship from." };
     const addressError = checkAddress(input.address);
     if (addressError) return { ok: false, error: addressError };
@@ -192,6 +194,8 @@ export async function updateListing(id: string, formData: FormData) {
 /** Pause hides a listing from browse and search; resume puts it back. */
 export async function setListingPaused(id: string, paused: boolean) {
   const user = await requireUser();
+  // A suspended seller can pause, but not put listings back on sale.
+  if (user.suspended && !paused) redirect("/dashboard?tab=listings");
   const supabase = await createClient();
   await supabase
     .from("listings")

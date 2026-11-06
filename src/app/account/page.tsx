@@ -21,6 +21,7 @@ const PREVIEW_USER: CurrentUser = {
   role: "member",
   onboarded: true,
   payoutsEnabled: false,
+  suspended: false,
 };
 
 export default async function AccountPage(props: PageProps<"/account">) {

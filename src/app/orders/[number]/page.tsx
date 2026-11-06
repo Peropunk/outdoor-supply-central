@@ -87,8 +87,8 @@ export default async function OrderPage(props: PageProps<"/orders/[number]">) {
         <Card className="mt-4 border-trail">
           <h2 className="text-xl">Ship it by {dayFmt.format(new Date(order.shipBy))}</h2>
           <p className="mt-1 text-muted">
-            We&apos;re buying your prepaid USPS label now. It appears here, with a Post Office QR code, and in your email
-            within a few minutes. Pack the item snugly in a box no bigger than its package size.
+            We&apos;re buying your prepaid USPS label now. It appears here, with a Post Office QR code, and in your
+            email within a few minutes. Pack the item snugly in a box no bigger than its package size.
           </p>
         </Card>
       )}

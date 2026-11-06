@@ -2,19 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ButtonLink } from "@/components/ui";
-import { HELP_PAGES, getHelpPage } from "../content";
+import { HELP_SLUGS, getHelpPage } from "../content";
 
 export function generateStaticParams() {
-  return HELP_PAGES.map((p) => ({ slug: p.slug }));
+  return HELP_SLUGS.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata(props: PageProps<"/help/[slug]">): Promise<Metadata> {
-  const page = getHelpPage((await props.params).slug);
+  const page = await getHelpPage((await props.params).slug);
   return page ? { title: page.title, description: page.summary } : {};
 }
 
 export default async function HelpArticle(props: PageProps<"/help/[slug]">) {
-  const page = getHelpPage((await props.params).slug);
+  const page = await getHelpPage((await props.params).slug);
   if (!page) notFound();
 
   return (

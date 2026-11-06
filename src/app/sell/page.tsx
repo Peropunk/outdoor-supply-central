@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Card, buttonClass } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { normalizePhone } from "@/lib/catalog";
+import { getCommissionRate } from "@/lib/settings";
 import { isStripeConfigured } from "@/lib/stripe";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
@@ -12,9 +13,11 @@ export const metadata: Metadata = { title: "Sell your gear" };
 
 export default async function SellPage() {
   let seller: SellerContext | null = null;
+  const rate = await getCommissionRate();
 
   if (isSupabaseConfigured) {
     const user = await requireUser("/sell");
+    if (user.suspended) return <Suspended />;
     // Work plan, Chunk 4: payouts must be set up before a seller's first listing goes live.
     if (isStripeConfigured && !user.payoutsEnabled) return <PayoutsFirst />;
     const supabase = await createClient();
@@ -41,7 +44,7 @@ export default async function SellPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 pt-8">
-      <SellFlow seller={seller} />
+      <SellFlow seller={seller} rate={rate} />
     </div>
   );
 }
@@ -62,6 +65,20 @@ function PayoutsFirst() {
           </button>
         </form>
         <p className="text-[14px] text-muted">You&apos;ll come straight back here to list your item.</p>
+      </Card>
+    </div>
+  );
+}
+
+function Suspended() {
+  return (
+    <div className="mx-auto max-w-xl px-4 pt-10">
+      <h1 className="text-3xl">Your account is suspended</h1>
+      <Card className="mt-6">
+        <p>
+          You can&apos;t list items while your account is suspended. Orders you&apos;ve already sold still need shipping
+          as usual. Check your email from Outdoor Supply Central, or reply to it, to sort this out.
+        </p>
       </Card>
     </div>
   );

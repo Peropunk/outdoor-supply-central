@@ -162,3 +162,6 @@ export function normalizePhone(value: string) {
   // (via Shippo) won't reject the label over a placeholder like 0000000000.
   return /^[2-9]\d{2}[2-9]\d{6}$/.test(national) ? national : null;
 }
+
+/** What buyers and sellers pick when they open a "Report a problem" thread. */
+export const PROBLEM_REASONS = ["It hasn't arrived", "It's not as described", "It arrived damaged", "Something else"];

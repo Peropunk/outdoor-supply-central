@@ -14,8 +14,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 export type ShipTo = { name: string; line1: string; line2: string; city: string; state: string; zip: string };
 
 export type QuoteResult =
-  | { ok: true; shippingCents: number; service: string; estimatedDays: number | null }
-  | { ok: false; error: string };
+  { ok: true; shippingCents: number; service: string; estimatedDays: number | null } | { ok: false; error: string };
 
 export type CheckoutResult = { ok: true; url: string } | { ok: false; error: string };
 
@@ -54,6 +53,7 @@ async function prepareSale(listingId: string, buyer: CurrentUser, shipTo: ShipTo
     return { error: "Someone else is checking out this item. Try again in half an hour." };
   if (listing.status !== "active") return { error: "This item isn't available any more." };
   if (listing.seller_id === buyer.id) return { error: "This is your own listing." };
+  if (buyer.suspended) return { error: "Your account is suspended, so you can't buy right now." };
 
   const [{ data: from }, { data: seller }] = await Promise.all([
     admin

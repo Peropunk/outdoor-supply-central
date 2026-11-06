@@ -1,192 +1,150 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { CircleCheck, RefreshCw, Truck } from "lucide-react";
-import { Card, PageTitle, PreviewNotice, buttonClass } from "@/components/ui";
+import { RefreshCw, Search } from "lucide-react";
+import { Card, PreviewNotice, buttonClass, inputClass } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { formatUSD } from "@/lib/money";
 import { isShippoTest } from "@/lib/shippo";
 import { createAdminClient } from "@/lib/supabase/server";
-import { adminRefund, adminRetryLabel, adminRunSweep, adminSimulateTracking } from "./actions";
+import { adminRunSweep } from "./actions";
+import { AdminNav } from "./AdminNav";
+import { ORDER_COLUMNS, OrderCard, type AdminOrder } from "./OrderCard";
 
-export const metadata: Metadata = { title: "Admin", robots: { index: false } };
+export const metadata: Metadata = { title: "Admin: orders", robots: { index: false } };
 
-// Admin orders (Chunk 4 refund, Chunk 5 tools). The full admin area, with
-// listings, reports and users, comes in Chunk 6.
+const monthFmt = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
 
-const STATUS: Record<string, { label: string; tone: string }> = {
-  paid: { label: "Paid, label pending", tone: "bg-boot text-white" },
-  label_ready: { label: "Label ready", tone: "bg-sand text-ink" },
-  shipped: { label: "Shipped", tone: "bg-trail text-white" },
-  delivered: { label: "Delivered", tone: "bg-pine text-white" },
-  refunded: { label: "Refunded", tone: "bg-line text-ink" },
-};
+/** For ilike: the user's text, with SQL wildcards taken literally. */
+function likeText(q: string) {
+  return `%${q.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+}
 
-const dateFmt = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
+/** Account ids whose email contains the text. Fine for thousands of members; paged by Supabase. */
+async function userIdsByEmail(q: string) {
+  const admin = createAdminClient();
+  const ids: string[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const { data } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    const users = data?.users ?? [];
+    ids.push(...users.filter((u) => u.email?.toLowerCase().includes(q.toLowerCase())).map((u) => u.id));
+    if (users.length < 1000) break;
+  }
+  return ids;
+}
 
-type Row = {
-  id: string;
-  number: string;
-  status: string;
-  item_cents: number;
-  shipping_cents: number;
-  commission_cents: number;
-  seller_share_cents: number;
-  ship_to: { name?: string; city?: string; state?: string } | null;
-  tracking_number: string | null;
-  tracking_status: string | null;
-  paid_at: string | null;
-  ship_by: string | null;
-  listings: { title: string } | null;
-  seller: { display_name: string } | null;
-  payouts: { status: string } | { status: string }[] | null;
-};
-
-export default async function AdminPage(props: PageProps<"/admin">) {
-  await requireAdmin();
-  const sp = await props.searchParams;
-  const { data } = await createAdminClient()
+async function findOrders(q: string): Promise<AdminOrder[]> {
+  const admin = createAdminClient();
+  let query = admin
     .from("orders")
-    .select(
-      "id, number, status, item_cents, shipping_cents, commission_cents, seller_share_cents, ship_to, tracking_number, tracking_status, paid_at, ship_by, listings(title), seller:profiles!orders_seller_id_fkey(display_name), payouts(status)",
-    )
+    .select(ORDER_COLUMNS)
     .not("status", "in", "(pending_payment,cancelled)")
     .order("created_at", { ascending: false })
     .limit(100);
-  const orders = (data ?? []) as unknown as Row[];
-  const msg = typeof sp.msg === "string" ? sp.msg : null;
+
+  if (q.includes("@")) {
+    const ids = await userIdsByEmail(q);
+    if (!ids.length) return [];
+    const list = ids.join(",");
+    query = query.or(`buyer_id.in.(${list}),seller_id.in.(${list})`);
+  } else if (/^(osc-?)?\d+$/i.test(q)) {
+    query = query.ilike("number", likeText(q.replace(/\D/g, "")));
+  } else if (q) {
+    const { data: listings } = await admin.from("listings").select("id").ilike("title", likeText(q)).limit(200);
+    const ids = (listings ?? []).map((l) => l.id as string);
+    if (!ids.length) return [];
+    query = query.in("listing_id", ids);
+  }
+  const { data } = await query;
+  return (data ?? []) as unknown as AdminOrder[];
+}
+
+/** Commission per calendar month (UTC) from orders that weren't refunded. */
+async function commissionByMonth() {
+  const { data } = await createAdminClient()
+    .from("orders")
+    .select("paid_at, item_cents, commission_cents")
+    .in("status", ["paid", "label_ready", "shipped", "delivered"])
+    .not("paid_at", "is", null);
+  const months = new Map<string, { orders: number; sales: number; commission: number }>();
+  for (const o of data ?? []) {
+    const key = (o.paid_at as string).slice(0, 7);
+    const m = months.get(key) ?? { orders: 0, sales: 0, commission: 0 };
+    m.orders++;
+    m.sales += o.item_cents as number;
+    m.commission += o.commission_cents as number;
+    months.set(key, m);
+  }
+  return [...months.entries()].sort(([a], [b]) => b.localeCompare(a)).slice(0, 12);
+}
+
+export default async function AdminOrdersPage(props: PageProps<"/admin">) {
+  await requireAdmin();
+  const sp = await props.searchParams;
+  const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 100) : "";
+  const [orders, months] = await Promise.all([findOrders(q), commissionByMonth()]);
+  const backTo = q ? `/admin?q=${encodeURIComponent(q)}` : "/admin";
 
   return (
     <div className="mx-auto max-w-4xl px-4 pt-8">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <PageTitle>Orders</PageTitle>
+      <AdminNav current="/admin" msg={sp.msg} />
+
+      <Card className="mt-6">
+        <h2 className="text-xl">Commission by month</h2>
+        {months.length ? (
+          <table className="mt-3 w-full text-left text-[15px]">
+            <thead className="text-muted">
+              <tr>
+                <th className="py-1 font-normal">Month</th>
+                <th className="py-1 text-right font-normal">Orders</th>
+                <th className="py-1 text-right font-normal">Item sales</th>
+                <th className="py-1 text-right font-normal">Commission</th>
+              </tr>
+            </thead>
+            <tbody>
+              {months.map(([key, m]) => (
+                <tr key={key} className="border-t border-line">
+                  <td className="py-1.5">{monthFmt.format(new Date(`${key}-01T00:00:00Z`))}</td>
+                  <td className="py-1.5 text-right">{m.orders}</td>
+                  <td className="py-1.5 text-right">{formatUSD(m.sales)}</td>
+                  <td className="py-1.5 text-right font-semibold">{formatUSD(m.commission)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="mt-2 text-muted">No paid orders yet.</p>
+        )}
+        <p className="mt-3 text-[14px] text-muted">
+          Refunded orders are left out. Card fees come out of the commission.
+        </p>
+      </Card>
+
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <form action="/admin" className="flex flex-1 gap-2" role="search">
+          <label htmlFor="q" className="sr-only">
+            Find an order
+          </label>
+          <input id="q" name="q" defaultValue={q} placeholder="Order number, email or item" className={inputClass} />
+          <button type="submit" className={buttonClass("primary", "shrink-0 px-4")} aria-label="Search orders">
+            <Search className="size-5" aria-hidden="true" />
+          </button>
+        </form>
         <form action={adminRunSweep}>
-          <button type="submit" className={buttonClass("outline", "min-h-11")}>
+          <button type="submit" className={buttonClass("outline", "min-h-12 w-full")}>
             <RefreshCw className="size-4" aria-hidden="true" />
             Run daily checks now
           </button>
         </form>
       </div>
-      <p className="-mt-2 text-muted">
-        Daily checks run each morning on their own: ship reminders, refunds for orders not shipped in time, and retries.
+      <p className="mt-2 text-[14px] text-muted">
+        Daily checks also run each morning on their own: ship reminders, refunds for orders not shipped in time, and
+        retries.
       </p>
 
-      {msg && (
-        <p role="status" className="mt-6 flex items-center gap-2 rounded-md bg-pine px-4 py-3 text-white">
-          <CircleCheck className="size-5 shrink-0" aria-hidden="true" /> {msg}
-        </p>
-      )}
-
       <div className="mt-6 space-y-4">
-        {!orders.length && <p className="text-muted">No paid orders yet.</p>}
-        {orders.map((o) => {
-          const status = STATUS[o.status] ?? { label: o.status, tone: "bg-line text-ink" };
-          const payout = Array.isArray(o.payouts) ? o.payouts[0]?.status : o.payouts?.status;
-          const unshipped = o.status === "paid" || o.status === "label_ready";
-          return (
-            <Card key={o.id} className="space-y-3">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <Link href={`/orders/${o.number}`} className="font-semibold text-ink">
-                    {o.number}
-                  </Link>
-                  <p className="line-clamp-1">{o.listings?.title ?? "Item"}</p>
-                </div>
-                <span className={`rounded-full px-3 py-1 text-[14px] font-semibold ${status.tone}`}>
-                  {status.label}
-                </span>
-              </div>
-
-              <dl className="grid gap-x-6 gap-y-1 text-[15px] sm:grid-cols-2">
-                <Pair
-                  label="Buyer"
-                  value={[o.ship_to?.name, o.ship_to?.city, o.ship_to?.state].filter(Boolean).join(", ")}
-                />
-                <Pair label="Seller" value={o.seller?.display_name || "Seller"} />
-                <Pair
-                  label="Paid"
-                  value={`${formatUSD(o.item_cents + o.shipping_cents)}${o.paid_at ? ` · ${dateFmt.format(new Date(o.paid_at))}` : ""}`}
-                />
-                <Pair label="Ship by" value={o.ship_by ? dateFmt.format(new Date(o.ship_by)) : "—"} />
-                <Pair label="Commission" value={formatUSD(o.commission_cents)} />
-                <Pair
-                  label="Seller share"
-                  value={`${formatUSD(o.seller_share_cents)} · ${
-                    payout === "transferred"
-                      ? "paid"
-                      : payout === "reversed"
-                        ? "taken back"
-                        : o.status === "refunded"
-                          ? "not owed"
-                          : payout === "held"
-                            ? "waiting to retry"
-                            : "held until USPS scan"
-                  }`}
-                />
-                <Pair
-                  label="USPS"
-                  value={
-                    o.tracking_number ? `${o.tracking_number} (${o.tracking_status ?? "no scan"})` : "No label yet"
-                  }
-                />
-              </dl>
-
-              {o.status !== "refunded" && (
-                <div className="flex flex-wrap gap-2 border-t border-line pt-3">
-                  {o.status === "paid" && (
-                    <form action={adminRetryLabel.bind(null, o.id)}>
-                      <button type="submit" className={buttonClass("outline", "min-h-10")}>
-                        Buy label again
-                      </button>
-                    </form>
-                  )}
-                  {isShippoTest && o.tracking_number && unshipped && (
-                    <form action={adminSimulateTracking.bind(null, o.id, "TRANSIT")}>
-                      <button type="submit" className={buttonClass("outline", "min-h-10")}>
-                        <Truck className="size-4" aria-hidden="true" /> Test: USPS scan
-                      </button>
-                    </form>
-                  )}
-                  {isShippoTest && o.status === "shipped" && (
-                    <form action={adminSimulateTracking.bind(null, o.id, "DELIVERED")}>
-                      <button type="submit" className={buttonClass("outline", "min-h-10")}>
-                        Test: delivered
-                      </button>
-                    </form>
-                  )}
-                  <details className="relative">
-                    <summary className="label-caps inline-flex min-h-10 cursor-pointer list-none items-center rounded-md border border-alert/40 px-4 text-[14px] text-alert hover:bg-alert/5">
-                      Refund in full
-                    </summary>
-                    <form
-                      action={adminRefund.bind(null, o.id)}
-                      className="absolute left-0 z-10 mt-1 w-72 rounded-md border border-line bg-paper p-3 shadow-lg"
-                    >
-                      <p className="text-[15px]">
-                        Refund {formatUSD(o.item_cents + o.shipping_cents)} to the buyer?{" "}
-                        {unshipped
-                          ? "The label is voided and the item goes back on sale."
-                          : payout === "transferred"
-                            ? "The seller's share is taken back from their Stripe balance."
-                            : "The item stays sold."}
-                      </p>
-                      <button
-                        type="submit"
-                        className="label-caps mt-2 inline-flex min-h-10 w-full items-center justify-center rounded-md bg-alert px-4 text-[14px] text-white hover:bg-alert/90"
-                      >
-                        Refund
-                      </button>
-                    </form>
-                  </details>
-                </div>
-              )}
-            </Card>
-          );
-        })}
+        {!orders.length && <p className="text-muted">{q ? `No orders match “${q}”.` : "No paid orders yet."}</p>}
+        {orders.map((o) => (
+          <OrderCard key={o.id} o={o} back={backTo} />
+        ))}
       </div>
 
       {isShippoTest && (
@@ -196,15 +154,6 @@ export default async function AdminPage(props: PageProps<"/admin">) {
           </PreviewNotice>
         </div>
       )}
-    </div>
-  );
-}
-
-function Pair({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex gap-2">
-      <dt className="text-muted">{label}:</dt>
-      <dd className="min-w-0 break-words">{value}</dd>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CircleCheck, ExternalLink, Pause, Pencil, Play, Trash } from "lucide-react";
+import { CircleCheck, ExternalLink, Pause, Pencil, Play, QrCode, Trash } from "lucide-react";
 import { GearPhoto } from "@/components/GearPhoto";
 import { ButtonLink, Card, ConditionBadge, PreviewNotice, StatusBar, buttonClass } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
@@ -9,6 +9,7 @@ import { formatUSD } from "@/lib/money";
 import { currentStepIndex, getOrders } from "@/lib/orders";
 import { getOrdersForUser } from "@/lib/orders-db";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { uspsTrackingUrl } from "@/lib/tracking";
 import { deleteListing, setListingPaused } from "../listings/actions";
 import { openStripeDashboard, startPayoutSetup } from "../payouts/actions";
 
@@ -45,7 +46,10 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
     user ? getOrdersForUser(user.id) : getOrders(),
   ]);
   const sales = orders.filter(({ listing }) => listing.seller.id === sellerId);
-  const toShip = sales.filter(({ order }) => order.status === "label_ready" || order.status === "paid");
+  // Most urgent first, so what has to go out today is at the top.
+  const toShip = sales
+    .filter(({ order }) => order.status === "label_ready" || order.status === "paid")
+    .sort((a, b) => a.order.shipBy.localeCompare(b.order.shipBy));
   const purchases = orders.filter(({ listing }) => listing.seller.id !== sellerId);
   // Refunded sales earn the seller nothing, so they're left out of payouts.
   const earning = sales.filter(({ order }) => order.status !== "refunded");
@@ -60,7 +64,14 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           <p className="text-muted">Hi, {user ? user.displayName || "there" : "JD"}</p>
           <h1 className="text-3xl">My dashboard</h1>
         </div>
-        <ButtonLink href="/sell">Sell an item</ButtonLink>
+        <div className="flex flex-wrap gap-2">
+          {user?.role === "admin" && (
+            <Link href="/admin" className={buttonClass("outline")}>
+              Admin
+            </Link>
+          )}
+          <ButtonLink href="/sell">Sell an item</ButtonLink>
+        </div>
       </div>
 
       <nav
@@ -104,15 +115,19 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                   <GearPhoto photo={listing.photos[0]} size="sm" className="w-20 shrink-0 rounded-md" />
                   <div className="min-w-0 flex-1">
                     <p className="line-clamp-2 font-semibold">{listing.title}</p>
-                    <p className="text-[15px] text-boot">Ship by {dayFmt.format(new Date(order.shipBy))}</p>
+                    <p className="text-[15px] font-semibold text-boot">{shipByText(order.shipBy)}</p>
                     <p className="text-[15px] text-muted">
                       To {order.buyer.name}, {order.buyer.city}, {order.buyer.state}
                     </p>
                   </div>
                 </div>
                 <Link href={`/orders/${order.number}?view=seller`} className={buttonClass("primary", "mt-4 w-full")}>
-                  Ship it
+                  <QrCode className="size-5" aria-hidden="true" />
+                  {order.status === "label_ready" ? "Show QR code and ship" : "Ship it"}
                 </Link>
+                {order.status === "paid" && (
+                  <p className="mt-2 text-center text-[14px] text-muted">Your USPS label is being prepared.</p>
+                )}
               </Card>
             ))
           ) : (
@@ -205,7 +220,14 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                 <Link href={`/orders/${order.number}`} className="line-clamp-1 font-semibold text-ink">
                   {listing.title}
                 </Link>
-                <p className="mb-4 text-[15px] text-muted">Order {order.number}</p>
+                <p className="mb-4 flex flex-wrap gap-x-3 text-[15px] text-muted">
+                  Order {order.number}
+                  {order.tracking && order.status !== "refunded" && (
+                    <a href={uspsTrackingUrl(order.tracking)} target="_blank" rel="noopener noreferrer">
+                      Track with USPS
+                    </a>
+                  )}
+                </p>
                 {order.status === "refunded" ? (
                   <p className="font-semibold">Refunded</p>
                 ) : (
@@ -227,6 +249,15 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       </div>
     </div>
   );
+}
+
+/** "Ship today", "Ship by tomorrow" or the date, so the seller sees how urgent it is. */
+function shipByText(iso: string) {
+  const days = Math.floor((new Date(iso).getTime() - Date.now()) / 86_400_000);
+  if (days < 0) return "Past the ship-by date";
+  if (days === 0) return "Ship today";
+  if (days === 1) return "Ship by tomorrow";
+  return `Ship by ${dayFmt.format(new Date(iso))}`;
 }
 
 function Empty({ text }: { text: string }) {
