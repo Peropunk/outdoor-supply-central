@@ -81,7 +81,7 @@ function problems(step: number, d: Draft, needsAddress: boolean): string[] {
     if (!a.name.trim() || !a.line1.trim() || !a.city.trim()) out.push("Fill in your name, street and city.");
     if (!/^[A-Za-z]{2}$/.test(a.state.trim())) out.push("Use the 2-letter state code, like OR.");
     if (!/^\d{5}$/.test(a.zip.trim())) out.push("Enter a 5-digit ZIP code.");
-    if (!normalizePhone(a.phone)) out.push("Enter a 10-digit phone number. USPS needs it for your labels.");
+    if (!normalizePhone(a.phone)) out.push("Enter a real 10-digit US phone number. USPS needs it for your labels.");
   }
   if (step === 3 && !d.agreed) out.push("Confirm the item isn't on the banned list.");
   return out;

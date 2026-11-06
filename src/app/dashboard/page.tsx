@@ -47,6 +47,8 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
   const sales = orders.filter(({ listing }) => listing.seller.id === sellerId);
   const toShip = sales.filter(({ order }) => order.status === "label_ready" || order.status === "paid");
   const purchases = orders.filter(({ listing }) => listing.seller.id !== sellerId);
+  // Refunded sales earn the seller nothing, so they're left out of payouts.
+  const earning = sales.filter(({ order }) => order.status !== "refunded");
 
   const defaultTab: TabId = live && !toShip.length ? "listings" : "ship";
   const tab: TabId = TABS.find((t) => t.id === sp.tab)?.id ?? defaultTab;
@@ -156,7 +158,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                   <dt className="text-muted">Paid to you</dt>
                   <dd className="text-2xl font-bold">
                     {formatUSD(
-                      sales
+                      earning
                         .filter(({ order }) => order.sellerPaidAt)
                         .reduce((sum, { order }) => sum + order.itemCents - order.commissionCents, 0),
                     )}
@@ -166,7 +168,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                   <dt className="text-muted">On the way</dt>
                   <dd className="text-2xl font-bold">
                     {formatUSD(
-                      sales
+                      earning
                         .filter(({ order }) => !order.sellerPaidAt)
                         .reduce((sum, { order }) => sum + order.itemCents - order.commissionCents, 0),
                     )}
@@ -181,7 +183,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                 </a>
               )}
             </Card>
-            {sales.map(({ order, listing }) => (
+            {earning.map(({ order, listing }) => (
               <Card key={order.number} className="flex justify-between gap-4">
                 <div className="min-w-0">
                   <p className="line-clamp-1 font-semibold">{listing.title}</p>
@@ -204,7 +206,11 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
                   {listing.title}
                 </Link>
                 <p className="mb-4 text-[15px] text-muted">Order {order.number}</p>
-                <StatusBar current={currentStepIndex(order.status)} />
+                {order.status === "refunded" ? (
+                  <p className="font-semibold">Refunded</p>
+                ) : (
+                  <StatusBar current={currentStepIndex(order.status)} />
+                )}
               </Card>
             ))
           ) : (
@@ -213,11 +219,7 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
       </div>
 
       <div className="mt-8">
-        {live ? (
-          <PreviewNotice>
-            USPS labels, tracking and payouts to sellers&apos; banks arrive in the next update (Chunk 5).
-          </PreviewNotice>
-        ) : (
+        {!live && (
           <PreviewNotice>
             sample seller data. Your own listings and sales show here once Supabase is connected.
           </PreviewNotice>

@@ -5,6 +5,7 @@ import { CircleCheck, MessageCircle, QrCode, Truck } from "lucide-react";
 import { GearPhoto } from "@/components/GearPhoto";
 import { Card, PreviewNotice, StatusBar, buttonClass } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { uspsTrackingUrl } from "@/lib/tracking";
 import { formatUSD } from "@/lib/money";
 import { currentStepIndex, getOrder } from "@/lib/orders";
 import { getOrderForUser } from "@/lib/orders-db";
@@ -67,16 +68,27 @@ export default async function OrderPage(props: PageProps<"/orders/[number]">) {
       </div>
       <p className="mt-1 text-muted">Paid {dateFmt.format(new Date(order.paidAt))}</p>
 
-      <Card className="mt-6">
-        <StatusBar current={step} />
-      </Card>
+      {order.status === "refunded" ? (
+        <Card className="mt-6 border-line bg-sand">
+          <h2 className="text-xl">Refunded</h2>
+          <p className="mt-1">
+            {asSeller
+              ? "This order was cancelled and the buyer refunded. Don't ship the item or use its label."
+              : `${formatUSD(total)} was refunded to your card${order.refundedAt ? ` on ${dayFmt.format(new Date(order.refundedAt))}` : ""}. Banks usually show it within 5 to 10 business days.`}
+          </p>
+        </Card>
+      ) : (
+        <Card className="mt-6">
+          <StatusBar current={step} />
+        </Card>
+      )}
 
       {live && asSeller && step === 0 && (
         <Card className="mt-4 border-trail">
           <h2 className="text-xl">Ship it by {dayFmt.format(new Date(order.shipBy))}</h2>
           <p className="mt-1 text-muted">
-            Your prepaid USPS label and QR code will appear here and in your email. Pack the item snugly in a box no
-            bigger than its package size.
+            We&apos;re buying your prepaid USPS label now. It appears here, with a Post Office QR code, and in your email
+            within a few minutes. Pack the item snugly in a box no bigger than its package size.
           </p>
         </Card>
       )}
@@ -84,8 +96,14 @@ export default async function OrderPage(props: PageProps<"/orders/[number]">) {
       {asSeller && step === 1 && (
         <Card className="mt-4 border-trail">
           <div className="flex flex-col gap-5 sm:flex-row">
-            <div className="flex aspect-square w-40 shrink-0 items-center justify-center self-center rounded-md border border-line bg-canvas">
-              <QrCode className="size-28 text-ink" strokeWidth={1} aria-label="USPS drop-off QR code" />
+            <div className="flex aspect-square w-44 shrink-0 items-center justify-center self-center overflow-hidden rounded-md border border-line bg-white">
+              {order.qrCodeUrl ? (
+                // A Shippo-hosted image that changes per order, so Next's image optimiser isn't used.
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={order.qrCodeUrl} alt="USPS drop-off QR code" className="size-full object-contain p-2" />
+              ) : (
+                <QrCode className="size-28 text-ink" strokeWidth={1} aria-label="USPS drop-off QR code" />
+              )}
             </div>
             <div>
               <h2 className="text-xl">Ship it by {dayFmt.format(new Date(order.shipBy))}</h2>
@@ -95,8 +113,13 @@ export default async function OrderPage(props: PageProps<"/orders/[number]">) {
                 <li>You&apos;re paid as soon as USPS scans it.</li>
               </ol>
               <div className="mt-4 flex flex-wrap gap-2">
-                <a href="#" className={buttonClass("outline", "min-h-11")}>
-                  Print label (PDF)
+                <a
+                  href={order.labelUrl ?? "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonClass("outline", "min-h-11")}
+                >
+                  Or print the label (PDF)
                 </a>
               </div>
             </div>
@@ -104,12 +127,19 @@ export default async function OrderPage(props: PageProps<"/orders/[number]">) {
         </Card>
       )}
 
-      {order.tracking && (
+      {order.tracking && order.status !== "refunded" && (
         <Card className="mt-4">
           <p className="flex items-center gap-2 font-semibold">
             <Truck className="size-5 text-trail" aria-hidden="true" /> USPS tracking
           </p>
-          <p className="mt-1 font-mono text-[15px] tracking-wide">{order.tracking}</p>
+          <a
+            href={uspsTrackingUrl(order.tracking)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block font-mono text-[15px] tracking-wide"
+          >
+            {order.tracking}
+          </a>
           <ul className="mt-3 space-y-1 text-[15px] text-muted">
             {[...order.events].reverse().map((e) => (
               <li key={e.step}>

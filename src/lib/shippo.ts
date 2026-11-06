@@ -25,6 +25,8 @@ export type UspsRate = {
 };
 
 export const isShippoConfigured = Boolean(process.env.SHIPPO_API_TOKEN);
+/** Test labels are free and never ship; the admin page can then simulate USPS scans. */
+export const isShippoTest = Boolean(process.env.SHIPPO_API_TOKEN?.startsWith("shippo_test_"));
 
 async function shippo<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${API}${path}`, {
@@ -55,6 +57,7 @@ export async function cheapestUspsRate(
   from: ShippoAddress,
   to: ShippoAddress,
   packageSize: PackageSizeId,
+  options: { qrCode?: boolean; orderNumber?: string } = {},
 ): Promise<UspsRate | null> {
   const { box, maxWeightLb } = getPackageSize(packageSize);
   const shipment = await shippo<{
@@ -78,6 +81,9 @@ export async function cheapestUspsRate(
         mass_unit: "lb",
       },
     ],
+    // The QR code lets the seller ship from a Post Office counter without a printer.
+    extra: options.qrCode ? { qr_code_requested: true } : undefined,
+    metadata: options.orderNumber,
     async: false,
   });
 
@@ -92,4 +98,50 @@ export async function cheapestUspsRate(
     service: cheapest.servicelevel.name,
     estimatedDays: cheapest.estimated_days ?? null,
   };
+}
+
+export type Label = {
+  transactionId: string;
+  labelUrl: string;
+  qrCodeUrl: string | null;
+  trackingNumber: string;
+  costCents: number;
+};
+
+/**
+ * Buys the prepaid USPS label, with a Post Office QR code, at today's cheapest
+ * USPS rate. The rate is quoted fresh because a checkout's quote can be days old.
+ */
+export async function buyLabel(
+  from: ShippoAddress,
+  to: ShippoAddress,
+  packageSize: PackageSizeId,
+  orderNumber: string,
+): Promise<Label> {
+  const rate = await cheapestUspsRate(from, to, packageSize, { qrCode: true, orderNumber });
+  if (!rate) throw new Error("USPS offers no rate for this shipment");
+  const tx = await shippo<{
+    object_id: string;
+    status: string;
+    label_url?: string;
+    qr_code_url?: string | null;
+    tracking_number?: string;
+    messages?: { text?: string }[];
+  }>("/transactions/", { rate: rate.rateId, label_file_type: "PDF", metadata: orderNumber, async: false });
+  if (tx.status !== "SUCCESS" || !tx.label_url || !tx.tracking_number) {
+    const why = tx.messages?.map((m) => m.text).filter(Boolean).join("; ");
+    throw new Error(`Shippo label ${tx.status}${why ? `: ${why}` : ""}`);
+  }
+  return {
+    transactionId: tx.object_id,
+    labelUrl: tx.label_url,
+    qrCodeUrl: tx.qr_code_url ?? null,
+    trackingNumber: tx.tracking_number,
+    costCents: rate.amountCents,
+  };
+}
+
+/** Voids an unused label so its postage is refunded. USPS refunds unused labels within a few weeks. */
+export async function voidLabel(transactionId: string) {
+  await shippo("/refunds/", { transaction: transactionId, async: false });
 }

@@ -3,7 +3,7 @@
 import { updateTag } from "next/cache";
 import { headers } from "next/headers";
 import { requireUser, type CurrentUser } from "@/lib/auth";
-import type { PackageSizeId } from "@/lib/catalog";
+import { normalizePhone, type PackageSizeId } from "@/lib/catalog";
 import { LISTINGS_TAG } from "@/lib/listings-db";
 import { commissionFor } from "@/lib/money";
 import { cancelUnpaidOrder, commissionRate, holdListing, HOLD_MINUTES, releaseExpiredHold } from "@/lib/orders-server";
@@ -63,7 +63,8 @@ async function prepareSale(listingId: string, buyer: CurrentUser, shipTo: ShipTo
       .maybeSingle(),
     admin.from("profiles").select("payouts_enabled").eq("id", listing.seller_id).single(),
   ]);
-  if (!from?.phone || (isStripeConfigured && !seller?.payouts_enabled)) {
+  // USPS refuses labels without a real phone number, so the sale would only refund itself later.
+  if (!from || !normalizePhone(from.phone ?? "") || (isStripeConfigured && !seller?.payouts_enabled)) {
     return { error: "This seller hasn't finished setting up shipping and payouts yet." };
   }
 

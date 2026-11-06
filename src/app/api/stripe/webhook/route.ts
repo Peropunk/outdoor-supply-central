@@ -1,17 +1,22 @@
 import { revalidateTag } from "next/cache";
-import { NextResponse, type NextRequest } from "next/server";
+import { after, NextResponse, type NextRequest } from "next/server";
 import type Stripe from "stripe";
 import { SHIP_BY_DAYS } from "@/lib/catalog";
 import { sendEmail } from "@/lib/email";
+import { buyLabelForOrder } from "@/lib/fulfillment";
 import { LISTINGS_TAG } from "@/lib/listings-db";
 import { formatUSD } from "@/lib/money";
 import { cancelUnpaidOrder } from "@/lib/orders-server";
+import { siteUrl } from "@/lib/site";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/server";
 
 // Stripe calls this after a checkout. Every event is checked against the
 // webhook signing secret, and each update only applies once, so Stripe's
 // retries can't mark an order paid twice.
+// Gives the label purchase that runs after the reply time to finish.
+export const maxDuration = 60;
+
 export async function POST(request: NextRequest) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   const signature = request.headers.get("stripe-signature");
@@ -31,7 +36,10 @@ export async function POST(request: NextRequest) {
   switch (event.type) {
     case "checkout.session.completed":
     case "checkout.session.async_payment_succeeded":
-      if (session.payment_status === "paid") await markPaid(orderId, session);
+      // The USPS label takes a few seconds to buy, so it happens after Stripe gets its reply.
+      if (session.payment_status === "paid" && (await markPaid(orderId, session))) {
+        after(() => buyLabelForOrder(orderId, true));
+      }
       break;
     case "checkout.session.expired":
     case "checkout.session.async_payment_failed":
@@ -41,6 +49,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ received: true });
 }
 
+/** Records the payment, marks the item sold and emails the buyer. True the first time only. */
 async function markPaid(orderId: string, session: Stripe.Checkout.Session) {
   const admin = createAdminClient();
   const paidAt = new Date();
@@ -60,9 +69,9 @@ async function markPaid(orderId: string, session: Stripe.Checkout.Session) {
     .eq("status", "pending_payment")
     .select("id, number, listing_id, buyer_id, seller_id, item_cents, shipping_cents, commission_cents, ship_to")
     .single();
-  if (!data) return; // already handled, or cancelled before payment
+  if (!data) return false; // already handled, or cancelled before payment
 
-  // The charge ID is what the seller's transfer is linked to in Chunk 5.
+  // The seller's transfer is drawn from this charge.
   if (paymentIntentId) {
     const intent = await getStripe().paymentIntents.retrieve(paymentIntentId);
     const chargeId = typeof intent.latest_charge === "string" ? intent.latest_charge : intent.latest_charge?.id;
@@ -77,42 +86,28 @@ async function markPaid(orderId: string, session: Stripe.Checkout.Session) {
     .single();
   revalidateTag(LISTINGS_TAG, { expire: 0 });
 
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const title = listing?.title ?? "your item";
   const shipByText = shipBy.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-  const { data: seller } = await admin.auth.admin.getUserById(data.seller_id);
   const buyerEmail = session.customer_details?.email ?? data.ship_to?.email;
 
-  await Promise.all([
-    buyerEmail &&
-      sendEmail({
-        to: buyerEmail,
-        subject: `Order ${data.number}: thanks for your purchase`,
-        text: [
-          `Thanks for buying ${title} on Outdoor Supply Central.`,
-          ``,
-          `Item: ${formatUSD(data.item_cents)}`,
-          `USPS shipping: ${formatUSD(data.shipping_cents)}`,
-          `Total paid: ${formatUSD(data.item_cents + data.shipping_cents)}`,
-          ``,
-          `The seller has until ${shipByText} to ship it. We'll email you when it's on its way.`,
-          `If it doesn't ship in time, you get a full refund automatically.`,
-          ``,
-          `Track your order: ${site}/orders/${data.number}`,
-        ].join("\n"),
-      }),
-    seller?.user?.email &&
-      sendEmail({
-        to: seller.user.email,
-        subject: `You sold it: ${title}`,
-        text: [
-          `Good news: ${title} sold for ${formatUSD(data.item_cents)}.`,
-          `You earn ${formatUSD(data.item_cents - data.commission_cents)} after fees, paid when USPS scans the package.`,
-          ``,
-          `Please ship it by ${shipByText}. Your prepaid USPS label and QR code will be on the order page.`,
-          ``,
-          `Order ${data.number}: ${site}/orders/${data.number}?view=seller`,
-        ].join("\n"),
-      }),
-  ]);
+  // The seller's "You sold it" email goes out with their USPS label (lib/fulfillment.ts).
+  if (buyerEmail) {
+    await sendEmail({
+      to: buyerEmail,
+      subject: `Order ${data.number}: thanks for your purchase`,
+      text: [
+        `Thanks for buying ${title} on Outdoor Supply Central.`,
+        ``,
+        `Item: ${formatUSD(data.item_cents)}`,
+        `USPS shipping: ${formatUSD(data.shipping_cents)}`,
+        `Total paid: ${formatUSD(data.item_cents + data.shipping_cents)}`,
+        ``,
+        `The seller has until ${shipByText} to ship it. We'll email you when it's on its way.`,
+        `If it doesn't ship in time, you get a full refund automatically.`,
+        ``,
+        `Track your order: ${siteUrl()}/orders/${data.number}`,
+      ].join("\n"),
+    });
+  }
+  return true;
 }

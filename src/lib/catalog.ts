@@ -158,5 +158,7 @@ export const ORDER_STEPS = ["Paid", "Label ready", "Shipped", "Delivered"] as co
 export function normalizePhone(value: string) {
   const digits = value.replace(/\D/g, "");
   const national = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
-  return /^\d{10}$/.test(national) ? national : null;
+  // A real US number: area code and exchange can't start with 0 or 1, so USPS
+  // (via Shippo) won't reject the label over a placeholder like 0000000000.
+  return /^[2-9]\d{2}[2-9]\d{6}$/.test(national) ? national : null;
 }

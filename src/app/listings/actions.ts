@@ -55,7 +55,7 @@ function checkAddress(a: ShipFromAddress): string | null {
   if (!a.name.trim() || !a.line1.trim() || !a.city.trim()) return "Fill in your name, street and city.";
   if (!/^[A-Za-z]{2}$/.test(a.state.trim())) return "Use the 2-letter state code, like OR.";
   if (!/^\d{5}$/.test(a.zip.trim())) return "Enter a 5-digit ZIP code.";
-  if (!normalizePhone(a.phone)) return "Enter a 10-digit phone number. USPS needs it for your labels.";
+  if (!normalizePhone(a.phone)) return "Enter a real 10-digit US phone number. USPS needs it for your labels.";
   return null;
 }
 

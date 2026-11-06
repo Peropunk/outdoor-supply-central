@@ -52,7 +52,7 @@ export default async function AccountPage(props: PageProps<"/account">) {
 
       {sp.error === "phone" && (
         <p role="alert" className="mb-6 rounded-md border border-alert/30 bg-alert/5 p-4 font-semibold text-alert">
-          Nothing was saved. Enter a 10-digit phone number, or leave it blank.
+          Nothing was saved. Enter a real 10-digit US phone number, or leave it blank.
         </p>
       )}
 

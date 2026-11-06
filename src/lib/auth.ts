@@ -1,6 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import type { ACTIVITIES } from "./catalog";
 import { isSupabaseConfigured } from "./supabase/config";
@@ -67,6 +67,13 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 export async function requireUser(returnTo?: string): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (!user) redirect(returnTo ? `/signin?next=${encodeURIComponent(returnTo)}` : "/signin");
+  return user;
+}
+
+/** Admins only. Everyone else gets a plain 404, so the admin area isn't advertised. */
+export async function requireAdmin(): Promise<CurrentUser> {
+  const user = await requireUser("/admin");
+  if (user.role !== "admin") notFound();
   return user;
 }
 

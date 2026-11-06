@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Card, buttonClass } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { normalizePhone } from "@/lib/catalog";
 import { isStripeConfigured } from "@/lib/stripe";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
@@ -24,7 +25,8 @@ export default async function SellPage() {
       .maybeSingle();
     seller = {
       id: user.id,
-      needsAddress: !address?.phone,
+      // Asked again if the saved phone isn't a real number: USPS refuses labels without one.
+      needsAddress: !normalizePhone(address?.phone ?? ""),
       address: {
         name: address?.name ?? user.displayName,
         line1: address?.line1 ?? "",

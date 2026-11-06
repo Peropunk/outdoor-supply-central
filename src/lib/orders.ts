@@ -23,6 +23,10 @@ export type Order = {
   events: { step: OrderStep; at: string }[];
   tracking?: string;
   sellerPaidAt?: string;
+  /** Seller only: the prepaid USPS label and Post Office QR code carry the seller's full address. */
+  labelUrl?: string;
+  qrCodeUrl?: string;
+  refundedAt?: string;
 };
 
 function addDays(iso: string, days: number) {
