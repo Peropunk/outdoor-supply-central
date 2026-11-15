@@ -10,6 +10,7 @@ import { siteUrl } from "./site";
 import { getStripe, isStripeConfigured } from "./stripe";
 import { uspsTrackingUrl } from "./tracking";
 import { createAdminClient } from "./supabase/server";
+import { SITE_TIME_ZONE } from "./time";
 
 // Everything that happens to an order after payment (Chunk 5), run with the
 // admin client: buy the USPS label, follow USPS tracking, pay the seller once
@@ -46,7 +47,12 @@ const UNSHIPPED = ["paid", "label_ready"] as const;
 const CLAIM_PREFIX = "pending:";
 const CLAIM_STALE_MS = 15 * 60_000;
 
-const dayFmt = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" });
+const dayFmt = new Intl.DateTimeFormat("en-US", {
+  weekday: "long",
+  month: "long",
+  day: "numeric",
+  timeZone: SITE_TIME_ZONE,
+});
 
 async function emailOf(userId: string) {
   const { data } = await createAdminClient().auth.admin.getUserById(userId);

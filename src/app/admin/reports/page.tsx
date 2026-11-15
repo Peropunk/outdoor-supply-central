@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
 import { adminDismissReport, adminRemoveListing } from "../actions";
 import { AdminNav } from "../AdminNav";
+import { SITE_TIME_ZONE } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Admin: reports", robots: { index: false } };
 
@@ -13,6 +14,8 @@ const dateFmt = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   hour: "numeric",
   minute: "2-digit",
+  timeZone: SITE_TIME_ZONE,
+  timeZoneName: "short",
 });
 
 type Row = {

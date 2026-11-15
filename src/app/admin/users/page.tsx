@@ -6,10 +6,16 @@ import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/server";
 import { adminSetSuspended } from "../actions";
 import { AdminNav } from "../AdminNav";
+import { SITE_TIME_ZONE } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Admin: users", robots: { index: false } };
 
-const dayFmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
+const dayFmt = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: SITE_TIME_ZONE,
+});
 
 type Profile = {
   id: string;

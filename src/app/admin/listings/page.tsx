@@ -7,6 +7,7 @@ import { formatUSD } from "@/lib/money";
 import { createAdminClient } from "@/lib/supabase/server";
 import { adminRemoveListing, adminRestoreListing } from "../actions";
 import { AdminNav } from "../AdminNav";
+import { SITE_TIME_ZONE } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Admin: listings", robots: { index: false } };
 
@@ -18,7 +19,12 @@ const LABEL: Record<string, string> = {
   sold: "Sold",
   removed: "Removed",
 };
-const dayFmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" });
+const dayFmt = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: SITE_TIME_ZONE,
+});
 
 type Row = {
   id: string;

@@ -4,6 +4,7 @@ import { Card, buttonClass } from "@/components/ui";
 import { formatUSD } from "@/lib/money";
 import { isShippoTest } from "@/lib/shippo";
 import { adminRefund, adminRetryLabel, adminSimulateTracking } from "./actions";
+import { SITE_TIME_ZONE } from "@/lib/time";
 
 export const ORDER_COLUMNS =
   "id, number, status, item_cents, shipping_cents, commission_cents, seller_share_cents, ship_to, tracking_number, tracking_status, paid_at, ship_by, created_at, listing_id, buyer_id, seller_id, listings(title), seller:profiles!orders_seller_id_fkey(display_name), payouts(status), order_messages(count)";
@@ -44,6 +45,8 @@ const dateFmt = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   hour: "numeric",
   minute: "2-digit",
+  timeZone: SITE_TIME_ZONE,
+  timeZoneName: "short",
 });
 
 /** One order with its money, USPS and payout state, and the admin's actions. `back` is where actions return to. */

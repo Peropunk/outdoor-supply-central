@@ -1,10 +1,13 @@
 import type { ThreadMessage } from "@/lib/messages";
+import { SITE_TIME_ZONE } from "@/lib/time";
 
 const dateFmt = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
   hour: "numeric",
   minute: "2-digit",
+  timeZone: SITE_TIME_ZONE,
+  timeZoneName: "short",
 });
 
 /** An order's problem thread, oldest message first. Used on the order's problem page and in admin. */

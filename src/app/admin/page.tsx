@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 import { formatUSD } from "@/lib/money";
 import { isShippoTest } from "@/lib/shippo";
 import { createAdminClient } from "@/lib/supabase/server";
+import { monthKey } from "@/lib/time";
 import { adminRunSweep } from "./actions";
 import { AdminNav } from "./AdminNav";
 import { ORDER_COLUMNS, OrderCard, type AdminOrder } from "./OrderCard";
@@ -66,7 +67,7 @@ async function commissionByMonth() {
     .not("paid_at", "is", null);
   const months = new Map<string, { orders: number; sales: number; commission: number }>();
   for (const o of data ?? []) {
-    const key = (o.paid_at as string).slice(0, 7);
+    const key = monthKey(o.paid_at as string);
     const m = months.get(key) ?? { orders: 0, sales: 0, commission: 0 };
     m.orders++;
     m.sales += o.item_cents as number;

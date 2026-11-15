@@ -8,6 +8,7 @@ import { LISTINGS_TAG } from "@/lib/listings-db";
 import { formatUSD } from "@/lib/money";
 import { cancelUnpaidOrder } from "@/lib/orders-server";
 import { siteUrl } from "@/lib/site";
+import { SITE_TIME_ZONE } from "@/lib/time";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/server";
 
@@ -87,7 +88,12 @@ async function markPaid(orderId: string, session: Stripe.Checkout.Session) {
   revalidateTag(LISTINGS_TAG, { expire: 0 });
 
   const title = listing?.title ?? "your item";
-  const shipByText = shipBy.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  const shipByText = shipBy.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    timeZone: SITE_TIME_ZONE,
+  });
   const buyerEmail = session.customer_details?.email ?? data.ship_to?.email;
 
   // The seller's "You sold it" email goes out with their USPS label (lib/fulfillment.ts).

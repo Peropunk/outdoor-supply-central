@@ -12,6 +12,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { uspsTrackingUrl } from "@/lib/tracking";
 import { deleteListing, setListingPaused } from "../listings/actions";
 import { openStripeDashboard, startPayoutSetup } from "../payouts/actions";
+import { SITE_TIME_ZONE } from "@/lib/time";
 
 export const metadata: Metadata = { title: "My dashboard" };
 
@@ -23,7 +24,12 @@ const TABS = [
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
-const dayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" });
+const dayFmt = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  timeZone: SITE_TIME_ZONE,
+});
 
 const STATUS_LABEL: Record<ListingStatus, string> = {
   active: "For sale",

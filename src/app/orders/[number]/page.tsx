@@ -10,6 +10,7 @@ import { formatUSD } from "@/lib/money";
 import { currentStepIndex, getOrder } from "@/lib/orders";
 import { getOrderForUser } from "@/lib/orders-db";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { SITE_TIME_ZONE } from "@/lib/time";
 
 export const metadata: Metadata = { title: "Order" };
 
@@ -18,8 +19,15 @@ const dateFmt = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
   hour: "numeric",
   minute: "2-digit",
+  timeZone: SITE_TIME_ZONE,
+  timeZoneName: "short",
 });
-const dayFmt = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" });
+const dayFmt = new Intl.DateTimeFormat("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  timeZone: SITE_TIME_ZONE,
+});
 
 export default async function OrderPage(props: PageProps<"/orders/[number]">) {
   const { number } = await props.params;
