@@ -3,16 +3,35 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Flag, MapPin, Package, ShieldCheck, Truck } from "lucide-react";
 import { ButtonLink, ConditionBadge, ListingGrid } from "@/components/ui";
-import { getCategory, getPackageSize } from "@/lib/catalog";
+import { ShareButton } from "@/components/ShareButton";
+import { getCategory, getCondition, getPackageSize } from "@/lib/catalog";
 import { getListing, searchListings } from "@/lib/listings";
 import { formatUSD } from "@/lib/money";
+import { SITE_TIME_ZONE } from "@/lib/time";
 import { Gallery } from "./Gallery";
 
 export async function generateMetadata(props: PageProps<"/item/[id]">): Promise<Metadata> {
   const { id } = await props.params;
   const listing = await getListing(id);
-  return listing ? { title: listing.title, description: listing.description } : {};
+  if (!listing) return {};
+  // What Facebook, WhatsApp and iMessage show when someone shares the link.
+  const description = `${formatUSD(listing.priceCents)} · ${getCondition(listing.condition)?.label ?? ""} · ${listing.flaws}`;
+  const photo = listing.photos.find((p): p is Extract<typeof p, { url: string }> => "url" in p);
+  return {
+    title: listing.title,
+    description: listing.description || description,
+    openGraph: {
+      title: `${listing.title} · ${formatUSD(listing.priceCents)}`,
+      description,
+      type: "website",
+      siteName: "Outdoor Supply Central",
+      images: photo ? [{ url: photo.url, alt: photo.alt }] : undefined,
+    },
+    twitter: { card: photo ? "summary_large_image" : "summary" },
+  };
 }
+
+const listedFmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: SITE_TIME_ZONE });
 
 export default async function ItemPage(props: PageProps<"/item/[id]">) {
   const { id } = await props.params;
@@ -102,10 +121,12 @@ export default async function ItemPage(props: PageProps<"/item/[id]">) {
             )}
           </div>
 
-          <div className="mt-8">
-            <h2 className="text-xl">About this item</h2>
-            <p className="mt-2 whitespace-pre-line">{listing.description}</p>
-          </div>
+          {listing.description.trim() && (
+            <div className="mt-8">
+              <h2 className="text-xl">About this item</h2>
+              <p className="mt-2 whitespace-pre-line">{listing.description}</p>
+            </div>
+          )}
 
           <div className="mt-8 flex items-center justify-between gap-4 border-t border-line pt-5">
             <div>
@@ -117,11 +138,15 @@ export default async function ItemPage(props: PageProps<"/item/[id]">) {
                   {listing.seller.state && `, ${listing.seller.state}`}
                 </p>
               )}
+              <p className="text-[14px] text-muted">Listed {listedFmt.format(new Date(listing.createdAt))}</p>
             </div>
-            <Link href={`/item/${listing.id}/report`} className="flex items-center gap-1 text-[15px] text-muted">
-              <Flag className="size-4" aria-hidden="true" />
-              Report
-            </Link>
+            <div className="flex shrink-0 items-center gap-4">
+              <ShareButton title={listing.title} text={`${listing.title} for ${formatUSD(listing.priceCents)}`} />
+              <Link href={`/item/${listing.id}/report`} className="flex items-center gap-1 text-[15px] text-muted">
+                <Flag className="size-4" aria-hidden="true" />
+                Report
+              </Link>
+            </div>
           </div>
         </section>
       </div>

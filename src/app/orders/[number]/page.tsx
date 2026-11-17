@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CircleCheck, MessageCircle, QrCode, Truck } from "lucide-react";
+import { CopyButton } from "@/components/CopyButton";
 import { GearPhoto } from "@/components/GearPhoto";
 import { Card, PreviewNotice, StatusBar, buttonClass } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
@@ -140,14 +141,17 @@ export default async function OrderPage(props: PageProps<"/orders/[number]">) {
           <p className="flex items-center gap-2 font-semibold">
             <Truck className="size-5 text-trail" aria-hidden="true" /> USPS tracking
           </p>
-          <a
-            href={uspsTrackingUrl(order.tracking)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-1 inline-block font-mono text-[15px] tracking-wide"
-          >
-            {order.tracking}
-          </a>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2">
+            <a
+              href={uspsTrackingUrl(order.tracking)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-[15px] tracking-wide break-all"
+            >
+              {order.tracking}
+            </a>
+            <CopyButton value={order.tracking} label="Copy tracking number" />
+          </div>
           <ul className="mt-3 space-y-1 text-[15px] text-muted">
             {[...order.events].reverse().map((e) => (
               <li key={e.step}>

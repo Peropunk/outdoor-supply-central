@@ -1,11 +1,17 @@
 import Link from "next/link";
-import { Camera, QrCode, ShieldCheck, Wallet } from "lucide-react";
+import { Camera, QrCode, RotateCcw, ShieldCheck, Truck, Wallet } from "lucide-react";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { MountainArt } from "@/components/MountainArt";
 import { SearchBox } from "@/components/SearchBox";
 import { ButtonLink, ListingGrid } from "@/components/ui";
 import { CATEGORIES } from "@/lib/catalog";
 import { countByCategory, getRecentListings } from "@/lib/listings";
+
+const PROMISES = [
+  { icon: ShieldCheck, title: "Protected payment", body: "The seller is paid only after USPS scans the package." },
+  { icon: Truck, title: "Tracked USPS shipping", body: "Follow every order from label to your door." },
+  { icon: RotateCcw, title: "Ships in 5 days or it's refunded", body: "Automatically, in full, if it doesn't ship." },
+];
 
 const STEPS = [
   { icon: Camera, title: "List it from your phone", body: "Photos, condition and price in four short steps." },
@@ -42,6 +48,20 @@ export default async function Home() {
         </div>
       </section>
 
+      <section aria-label="Why buy here" className="border-b border-line bg-paper">
+        <ul className="mx-auto grid max-w-6xl gap-x-6 gap-y-4 px-4 py-6 sm:grid-cols-3">
+          {PROMISES.map(({ icon: Icon, title, body }) => (
+            <li key={title} className="flex gap-3">
+              <Icon className="mt-0.5 size-6 shrink-0 text-trail" aria-hidden="true" />
+              <div>
+                <p className="font-semibold">{title}</p>
+                <p className="text-[15px] text-muted">{body}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <section className="mx-auto max-w-6xl px-4 pt-12" aria-labelledby="cat-heading">
         <h2 id="cat-heading" className="text-2xl sm:text-3xl">
           Shop by activity
@@ -56,7 +76,7 @@ export default async function Home() {
                 <CategoryIcon slug={c.slug} className="size-8 text-trail" />
                 <span className="font-heading text-lg leading-tight font-semibold text-pine">{c.name}</span>
                 <span className="text-[14px] text-muted">
-                  {counts[c.slug] ?? 0} {counts[c.slug] === 1 ? "item" : "items"}
+                  {counts[c.slug] ? `${counts[c.slug]} ${counts[c.slug] === 1 ? "item" : "items"}` : "Browse"}
                 </span>
               </Link>
             </li>

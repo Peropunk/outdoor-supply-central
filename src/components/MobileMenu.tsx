@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Menu, X } from "lucide-react";
+import { signOutEverywhere } from "./AccountMenu";
 import { buttonClass } from "./ui";
+import { useAccount } from "./useAccount";
 
 export function MobileMenu({ items }: { items: { href: string; label: string }[] }) {
   const [open, setOpen] = useState(false);
+  const account = useAccount();
 
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
@@ -48,12 +51,17 @@ export function MobileMenu({ items }: { items: { href: string; label: string }[]
               >
                 <X className="size-6" aria-hidden="true" />
               </button>
+              {account && <p className="truncate px-1 text-[15px] text-muted">Signed in as {account.name}</p>}
               <ul className="mt-2 divide-y divide-line">
                 {[
                   ...items,
-                  { href: "/dashboard", label: "My dashboard" },
-                  { href: "/account", label: "My account" },
-                  { href: "/signin", label: "Sign in" },
+                  ...(account
+                    ? [
+                        { href: "/dashboard", label: "My dashboard" },
+                        { href: "/account", label: "Account settings" },
+                        ...(account.admin ? [{ href: "/admin", label: "Admin" }] : []),
+                      ]
+                    : [{ href: "/signin", label: "Sign in" }]),
                 ].map((item) => (
                   <li key={item.href}>
                     <Link href={item.href} className="block py-4 text-lg text-ink no-underline">
@@ -61,6 +69,13 @@ export function MobileMenu({ items }: { items: { href: string; label: string }[]
                     </Link>
                   </li>
                 ))}
+                {account && (
+                  <li>
+                    <button type="button" onClick={signOutEverywhere} className="block w-full py-4 text-left text-lg">
+                      Sign out
+                    </button>
+                  </li>
+                )}
               </ul>
               <div className="mt-auto grid gap-3 pb-4">
                 <Link href="/browse" className={buttonClass("secondary")}>

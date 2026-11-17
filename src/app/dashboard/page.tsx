@@ -80,6 +80,28 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
         </div>
       </div>
 
+      {live && (
+        <dl className="mt-6 grid grid-cols-3 gap-3">
+          {[
+            { label: "For sale", value: String(listings.filter((l) => l.status === "active").length) },
+            { label: "To ship", value: String(toShip.length), urgent: toShip.length > 0 },
+            {
+              label: "Earned",
+              value: formatUSD(
+                earning
+                  .filter(({ order }) => order.sellerPaidAt)
+                  .reduce((sum, { order }) => sum + order.itemCents - order.commissionCents, 0),
+              ),
+            },
+          ].map((s) => (
+            <div key={s.label} className="rounded-[var(--radius-card)] border border-line bg-paper px-4 py-3">
+              <dt className="text-[14px] text-muted">{s.label}</dt>
+              <dd className={`truncate text-xl font-bold sm:text-2xl ${s.urgent ? "text-boot" : ""}`}>{s.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
       <nav
         aria-label="Dashboard sections"
         className="-mx-4 mt-6 overflow-x-auto border-b border-line px-4 no-scrollbar"

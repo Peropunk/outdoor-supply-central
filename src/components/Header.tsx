@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Search, User } from "lucide-react";
+import { Search } from "lucide-react";
+import { AccountMenu } from "./AccountMenu";
 import { MobileMenu } from "./MobileMenu";
 import { buttonClass } from "./ui";
 
@@ -46,13 +47,9 @@ export function Header() {
           >
             <Search className="size-6" aria-hidden="true" />
           </Link>
-          <Link
-            href="/account"
-            aria-label="Your account"
-            className="flex size-12 items-center justify-center rounded-md text-ink hover:bg-sand max-md:hidden"
-          >
-            <User className="size-6" aria-hidden="true" />
-          </Link>
+          <div className="max-md:hidden">
+            <AccountMenu />
+          </div>
           <Link href="/sell" className={buttonClass("primary", "ml-2 min-h-11 px-5 max-md:hidden")}>
             Sell gear
           </Link>
