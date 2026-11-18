@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { rememberNext, requireUser } from "@/lib/auth";
 import { ensureSellerAccount } from "@/lib/payouts";
 import { getStripe, sellerOnboardingUrl } from "@/lib/stripe";
+import { isRestrictedRegion } from "@/lib/restricted-regions";
 import { createAdminClient } from "@/lib/supabase/server";
 
 async function origin() {
@@ -14,6 +15,7 @@ async function origin() {
 /** Sends the seller to Stripe's hosted sign-up, then back to /payouts/return. */
 export async function startPayoutSetup(formData: FormData) {
   const user = await requireUser("/dashboard?tab=payouts");
+  if (isRestrictedRegion(await headers())) redirect("/unavailable");
   await rememberNext(formData.get("next"));
 
   let url: string;

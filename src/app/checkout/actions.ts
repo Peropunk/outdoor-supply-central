@@ -3,12 +3,13 @@
 import { updateTag } from "next/cache";
 import { headers } from "next/headers";
 import { requireUser, type CurrentUser } from "@/lib/auth";
-import { normalizePhone, type PackageSizeId } from "@/lib/catalog";
+import { normalizePhone, US_STATES, type PackageSizeId } from "@/lib/catalog";
 import { LISTINGS_TAG } from "@/lib/listings-db";
 import { commissionFor } from "@/lib/money";
 import { cancelUnpaidOrder, commissionRate, holdListing, HOLD_MINUTES, releaseExpiredHold } from "@/lib/orders-server";
 import { cheapestUspsRate, isDeliverable, isShippoConfigured, type ShippoAddress, type UspsRate } from "@/lib/shippo";
 import { getStripe, isStripeConfigured } from "@/lib/stripe";
+import { isRestrictedRegion, RESTRICTED_MESSAGE } from "@/lib/restricted-regions";
 import { createAdminClient } from "@/lib/supabase/server";
 
 export type ShipTo = { name: string; line1: string; line2: string; city: string; state: string; zip: string };
@@ -26,7 +27,8 @@ type Sale = {
 
 function checkShipTo(a: ShipTo): string | null {
   if (!a.name.trim() || !a.line1.trim() || !a.city.trim()) return "Fill in your name, street and city.";
-  if (!/^[A-Z]{2}$/.test(a.state)) return "Pick your state.";
+  // US destinations only: the 50 states and DC.
+  if (!US_STATES.includes(a.state)) return "Pick your state.";
   if (!/^\d{5}$/.test(a.zip.trim())) return "Enter a 5-digit ZIP code.";
   return null;
 }
@@ -107,6 +109,8 @@ async function prepareSale(listingId: string, buyer: CurrentUser, shipTo: ShipTo
 /** The live USPS rate from the seller to this buyer. The seller's address never leaves the server. */
 export async function quoteShipping(listingId: string, shipTo: ShipTo): Promise<QuoteResult> {
   const buyer = await requireUser(`/checkout/${listingId}`);
+  // Geo-blocking, as well as in proxy.ts (Stripe Restricted Businesses policy).
+  if (isRestrictedRegion(await headers())) return { ok: false, error: RESTRICTED_MESSAGE };
   try {
     const sale = await prepareSale(listingId, buyer, shipTo);
     if ("error" in sale) return { ok: false, error: sale.error };
@@ -128,6 +132,7 @@ export async function quoteShipping(listingId: string, shipTo: ShipTo): Promise<
  */
 export async function startCheckout(listingId: string, shipTo: ShipTo): Promise<CheckoutResult> {
   const buyer = await requireUser(`/checkout/${listingId}`);
+  if (isRestrictedRegion(await headers())) return { ok: false, error: RESTRICTED_MESSAGE };
   if (!isStripeConfigured) return { ok: false, error: "Payments aren't connected yet." };
 
   let sale: Sale | { error: string };

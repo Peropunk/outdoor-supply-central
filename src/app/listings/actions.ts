@@ -1,11 +1,13 @@
 "use server";
 
 import { updateTag } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
 import { CATEGORIES, CONDITIONS, PACKAGE_SIZES, normalizePhone } from "@/lib/catalog";
 import { LISTINGS_TAG } from "@/lib/listings-db";
 import { PHOTO_BUCKET, isSupabaseConfigured } from "@/lib/supabase/config";
+import { isRestrictedRegion, RESTRICTED_MESSAGE } from "@/lib/restricted-regions";
 import { createClient } from "@/lib/supabase/server";
 
 // Seller and reporting actions for listings (Chunk 3). Every action checks the
@@ -89,6 +91,7 @@ export async function createListing(input: {
   if (!isSupabaseConfigured) return { ok: false, error: "Listings save once Supabase is connected." };
   const user = await requireUser();
   if (user.suspended) return { ok: false, error: SUSPENDED };
+  if (isRestrictedRegion(await headers())) return { ok: false, error: RESTRICTED_MESSAGE };
   const supabase = await createClient();
 
   if (!UUID.test(input.id)) return { ok: false, error: "Something went wrong. Please try again." };

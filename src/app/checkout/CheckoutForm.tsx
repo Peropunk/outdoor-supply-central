@@ -5,13 +5,10 @@ import { useState, type ReactNode } from "react";
 import { CircleAlert, Lock, ShieldCheck, Truck } from "lucide-react";
 import { StreetAddressInput } from "@/components/StreetAddressInput";
 import { Card, Field, PreviewNotice, buttonClass, inputClass } from "@/components/ui";
+import { US_STATES } from "@/lib/catalog";
 import { formatUSD } from "@/lib/money";
 import { quoteShipping, startCheckout, type QuoteResult, type ShipTo } from "./actions";
 
-const STATES =
-  "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split(
-    " ",
-  );
 
 type Quote = Extract<QuoteResult, { ok: true }>;
 
@@ -174,7 +171,7 @@ export function CheckoutForm({
                 className={inputClass}
               >
                 <option value=""></option>
-                {STATES.map((s) => (
+                {US_STATES.map((s) => (
                   <option key={s}>{s}</option>
                 ))}
               </select>
