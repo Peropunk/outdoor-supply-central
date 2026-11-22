@@ -5,7 +5,7 @@ import { sendEmail } from "./email";
 import { LISTINGS_TAG } from "./listings-db";
 import { formatUSD } from "./money";
 import { releaseExpiredHold } from "./orders-server";
-import { buyLabel, isShippoConfigured, voidLabel } from "./shippo";
+import { buyLabel, isShippoConfigured, latestTracking, voidLabel } from "./shippo";
 import { siteUrl } from "./site";
 import { getStripe, isStripeConfigured } from "./stripe";
 import { uspsTrackingUrl } from "./tracking";
@@ -402,7 +402,11 @@ export async function refundOrder(orderId: string, reason: RefundReason): Promis
     if (tx && !tx.startsWith(CLAIM_PREFIX)) {
       await voidLabel(tx).catch((error) => console.error(`[void failed] ${order.number}: ${error}`));
     }
-    await admin.from("listings").update({ status: "active", reserved_until: null }).eq("id", order.listing_id);
+    // A missed ship-by pauses the listing rather than relisting it: the package may already be on its
+    // way, and a relisted item could sell twice. The seller puts it back on sale from their dashboard.
+    // An admin refund of an unshipped order relists it, since the seller still has the item.
+    const status = reason === "not_shipped" ? "paused" : "active";
+    await admin.from("listings").update({ status, reserved_until: null }).eq("id", order.listing_id);
     revalidateTag(LISTINGS_TAG, { expire: 0 });
   }
 
@@ -436,7 +440,13 @@ export async function refundOrder(orderId: string, reason: RefundReason): Promis
             ? `${title} wasn't shipped by the deadline, so the buyer has been refunded and the order cancelled.`
             : `Outdoor Supply Central refunded the buyer for ${title}.`,
           ...(!wasShipped
-            ? [`Your listing is back on sale, and the USPS label has been cancelled. Please don't use it.`]
+            ? reason === "not_shipped"
+              ? [
+                  `The USPS label has been cancelled, so please don't use it or ship the item.`,
+                  `Your listing is paused. If you still have the item, put it back on sale from your dashboard: ${siteUrl()}/dashboard?tab=listings`,
+                  `Already handed it to USPS? Reply with your Post Office receipt and we'll look into it.`,
+                ]
+              : [`Your listing is back on sale, and the USPS label has been cancelled. Please don't use it.`]
             : payout?.stripe_transfer_id
               ? [`Your share of ${formatUSD(order.seller_share_cents)} has been taken back from your Stripe balance.`]
               : []),
@@ -454,6 +464,8 @@ export type SweepReport = {
   holdsReleased: number;
   reminders: number;
   cancelled: number;
+  /** Overdue orders USPS had scanned after all (found by asking USPS directly), so not cancelled. */
+  lateScans: number;
   labelsRetried: number;
   payoutsRetried: number;
 };
@@ -464,7 +476,14 @@ export type SweepReport = {
  */
 export async function runOrderSweep(now = new Date()): Promise<SweepReport> {
   const admin = createAdminClient();
-  const report: SweepReport = { holdsReleased: 0, reminders: 0, cancelled: 0, labelsRetried: 0, payoutsRetried: 0 };
+  const report: SweepReport = {
+    holdsReleased: 0,
+    reminders: 0,
+    cancelled: 0,
+    lateScans: 0,
+    labelsRetried: 0,
+    payoutsRetried: 0,
+  };
 
   const { data: holds } = await admin
     .from("listings")
@@ -506,13 +525,24 @@ export async function runOrderSweep(now = new Date()): Promise<SweepReport> {
     report.reminders++;
   }
 
-  // Past the ship-by date: cancel, refund, void the label, relist.
+  // Past the ship-by date: cancel, refund, void the label, pause the listing. First ask USPS once more,
+  // so a scan whose webhook was missed or delayed never triggers a refund by mistake.
   const { data: overdue } = await admin
     .from("orders")
-    .select("id")
+    .select("id, tracking_number")
     .in("status", UNSHIPPED)
     .lt("ship_by", now.toISOString());
-  for (const { id } of overdue ?? []) if ((await refundOrder(id, "not_shipped")).ok) report.cancelled++;
+  for (const { id, tracking_number } of overdue ?? []) {
+    if (tracking_number && isShippoConfigured) {
+      const latest = await latestTracking(tracking_number).catch(() => null);
+      if (latest && (latest.status === "TRANSIT" || latest.status === "DELIVERED")) {
+        await applyTracking(tracking_number, latest.status, latest.at ? new Date(latest.at) : now);
+        report.lateScans++;
+        continue;
+      }
+    }
+    if ((await refundOrder(id, "not_shipped")).ok) report.cancelled++;
+  }
 
   // Labels that failed or got stuck mid-purchase.
   const [{ data: never }, { data: stuck }] = await Promise.all([

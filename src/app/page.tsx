@@ -34,7 +34,7 @@ export default async function Home() {
             Camping, hiking, fishing &amp; survival gear
           </p>
           <p className="mx-auto mt-4 max-w-lg text-lg text-ink/80">
-            Used gear from fellow outdoor people, with protected payment and tracked USPS shipping.
+            Pre-owned gear from fellow outdoor people, with protected payment and tracked USPS shipping.
           </p>
           <div className="mx-auto mt-8 grid max-w-sm gap-3 sm:max-w-md sm:grid-cols-2">
             <ButtonLink href="/browse">Buy gear</ButtonLink>

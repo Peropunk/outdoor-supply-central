@@ -9,11 +9,11 @@ const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: {
-    default: "Outdoor Supply Central · Buy and sell used outdoor gear",
+    default: "Outdoor Supply Central · Buy and sell pre-owned outdoor gear",
     template: "%s · Outdoor Supply Central",
   },
   description:
-    "Camping, hiking, fishing and survival gear from fellow outdoor people. Give your gear a second life. #GetOutMore",
+    "Pre-owned camping, hiking, fishing and survival gear from fellow outdoor people. Give your gear a second life. #GetOutMore",
 };
 
 export const viewport: Viewport = {

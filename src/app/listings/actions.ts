@@ -4,7 +4,8 @@ import { updateTag } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
-import { CATEGORIES, CONDITIONS, PACKAGE_SIZES, normalizePhone } from "@/lib/catalog";
+import { shipFromAddressOk } from "@/lib/address-check";
+import { CATEGORIES, CONDITIONS, PACKAGE_SIZES, normalizePhone, US_STATES } from "@/lib/catalog";
 import { LISTINGS_TAG } from "@/lib/listings-db";
 import { PHOTO_BUCKET, isSupabaseConfigured } from "@/lib/supabase/config";
 import { isRestrictedRegion, RESTRICTED_MESSAGE } from "@/lib/restricted-regions";
@@ -56,7 +57,7 @@ function checkFields(f: ListingFields): string | null {
 
 function checkAddress(a: ShipFromAddress): string | null {
   if (!a.name.trim() || !a.line1.trim() || !a.city.trim()) return "Fill in your name, street and city.";
-  if (!/^[A-Za-z]{2}$/.test(a.state.trim())) return "Use the 2-letter state code, like OR.";
+  if (!US_STATES.includes(a.state.trim().toUpperCase())) return "Use the 2-letter code of a US state, like OR.";
   if (!/^\d{5}$/.test(a.zip.trim())) return "Enter a 5-digit ZIP code.";
   if (!normalizePhone(a.phone)) return "Enter a real 10-digit US phone number. USPS needs it for your labels.";
   return null;
@@ -115,6 +116,12 @@ export async function createListing(input: {
     if (!input.address) return { ok: false, error: "Add the address you'll ship from." };
     const addressError = checkAddress(input.address);
     if (addressError) return { ok: false, error: addressError };
+    if (!(await shipFromAddressOk(input.address))) {
+      return {
+        ok: false,
+        error: "USPS can't find that ship-from address. Check the street, city, state and ZIP code.",
+      };
+    }
     const a = input.address;
     const { error } = await supabase.from("seller_addresses").upsert({
       user_id: user.id,

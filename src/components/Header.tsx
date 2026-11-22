@@ -10,6 +10,7 @@ export const NAV = [
   { href: "/sell", label: "Sell your gear" },
   { href: "/help/how-to-sell", label: "How it works" },
   { href: "/help", label: "Help" },
+  { href: "/about", label: "About us" },
 ];
 
 export function Header() {

@@ -6,7 +6,7 @@ import { CATEGORIES, CONDITIONS, getCategory } from "@/lib/catalog";
 import { searchListings, type ListingQuery } from "@/lib/listings";
 import { dollarsToCents } from "@/lib/money";
 
-export const metadata: Metadata = { title: "Shop used outdoor gear" };
+export const metadata: Metadata = { title: "Shop pre-owned outdoor gear" };
 
 const SORTS = [
   { id: "newest", label: "Newest" },

@@ -2,7 +2,8 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { ACTIVITIES, normalizePhone } from "@/lib/catalog";
+import { shipFromAddressOk } from "@/lib/address-check";
+import { ACTIVITIES, normalizePhone, US_STATES } from "@/lib/catalog";
 import { rememberNext, requireUser, takeNext, type Intent } from "@/lib/auth";
 import { isGoogleSignInEnabled, isSupabaseConfigured } from "@/lib/supabase/config";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
@@ -110,7 +111,12 @@ export async function updateAccount(formData: FormData) {
     state: field("state").toUpperCase(),
     zip: field("zip"),
   };
-  const hasAddress = address.line1 && address.city && /^[A-Z]{2}$/.test(address.state) && /^\d{5}$/.test(address.zip);
+  const hasAddress = Boolean(
+    address.line1 && address.city && US_STATES.includes(address.state) && /^\d{5}$/.test(address.zip),
+  );
+  // Part of an address isn't saved silently: say what's missing.
+  if (!hasAddress && (address.line1 || address.city || address.zip)) redirect("/account?error=address");
+  if (hasAddress && !(await shipFromAddressOk(address))) redirect("/account?error=usps");
   const rawPhone = field("phone");
   const phone = normalizePhone(rawPhone);
   if (rawPhone && !phone) redirect("/account?error=phone");

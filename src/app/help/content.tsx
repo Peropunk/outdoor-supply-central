@@ -152,9 +152,14 @@ function buildHelpPages(rate: number): HelpPage[] {
           </p>
           <Section title={`Ship within ${SHIP_BY_DAYS} days`}>
             <p>
-              We remind you on day {SHIP_REMINDER_DAY}. If USPS hasn&apos;t scanned the package after {SHIP_BY_DAYS}{" "}
-              days, the order is cancelled, the buyer is fully refunded, the label is cancelled and your item goes back
-              on sale. Please don&apos;t ship it after that.
+              The deadline is {SHIP_BY_DAYS} calendar days from the moment of purchase, shown to the minute on the
+              order. We remind you on day {SHIP_REMINDER_DAY}. If USPS hasn&apos;t scanned the package by then, the
+              order is cancelled, the buyer is fully refunded, the label is cancelled and your listing is paused. Put it
+              back on sale from your dashboard if you still have the item. Please don&apos;t ship it after that.
+            </p>
+            <p>
+              Show the QR code at a Post Office counter so the clerk scans it on the spot. If you handed it to USPS in
+              time but it wasn&apos;t scanned, reply to the cancellation email with your Post Office receipt.
             </p>
           </Section>
           <Section title="Package sizes">
@@ -250,7 +255,7 @@ function buildHelpPages(rate: number): HelpPage[] {
           <Section title="Who we are">
             <p>
               Outdoor Supply Central is run by Outdoor Central, LLC (“we”, “us”). It&apos;s a marketplace where people
-              sell used outdoor gear to each other. We aren&apos;t the seller of items listed by members, and we
+              sell pre-owned outdoor gear to each other. We aren&apos;t the seller of items listed by members, and we
               don&apos;t own or inspect them.
             </p>
           </Section>
@@ -315,7 +320,7 @@ function buildHelpPages(rate: number): HelpPage[] {
             <p>
               The site is provided as it is. To the extent the law allows, we aren&apos;t liable for the condition,
               safety or legality of items members list, or for indirect losses. Outdoor gear can be dangerous if
-              it&apos;s worn or damaged: check used gear before you rely on it.
+              it&apos;s worn or damaged: check pre-owned gear before you rely on it.
             </p>
           </Section>
           <Section title="Changes and contact">

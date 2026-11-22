@@ -129,7 +129,10 @@ export async function buyLabel(
     messages?: { text?: string }[];
   }>("/transactions/", { rate: rate.rateId, label_file_type: "PDF", metadata: orderNumber, async: false });
   if (tx.status !== "SUCCESS" || !tx.label_url || !tx.tracking_number) {
-    const why = tx.messages?.map((m) => m.text).filter(Boolean).join("; ");
+    const why = tx.messages
+      ?.map((m) => m.text)
+      .filter(Boolean)
+      .join("; ");
     throw new Error(`Shippo label ${tx.status}${why ? `: ${why}` : ""}`);
   }
   return {
@@ -144,4 +147,19 @@ export async function buyLabel(
 /** Voids an unused label so its postage is refunded. USPS refunds unused labels within a few weeks. */
 export async function voidLabel(transactionId: string) {
   await shippo("/refunds/", { transaction: transactionId, async: false });
+}
+
+/**
+ * USPS's latest tracking status for a label bought through Shippo, asked
+ * directly (not waiting for the webhook). Null if Shippo can't say.
+ */
+export async function latestTracking(trackingNumber: string): Promise<{ status: string; at: string | null } | null> {
+  const res = await fetch(`${API}/tracks/usps/${encodeURIComponent(trackingNumber)}`, {
+    headers: { Authorization: `ShippoToken ${process.env.SHIPPO_API_TOKEN}` },
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!res.ok) return null;
+  const body: { tracking_status?: { status?: string; status_date?: string | null } | null } = await res.json();
+  const status = body.tracking_status?.status;
+  return status ? { status, at: body.tracking_status?.status_date ?? null } : null;
 }

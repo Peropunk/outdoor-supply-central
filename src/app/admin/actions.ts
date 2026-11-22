@@ -64,7 +64,7 @@ export async function adminRunSweep() {
   const r = await runOrderSweep();
   done(
     "/admin",
-    `Daily checks ran: ${r.reminders} reminders, ${r.cancelled} cancelled, ${r.labelsRetried} labels and ${r.payoutsRetried} payouts retried, ${r.holdsReleased} holds released.`,
+    `Daily checks ran: ${r.reminders} reminders, ${r.cancelled} cancelled, ${r.lateScans} late USPS scans found, ${r.labelsRetried} labels and ${r.payoutsRetried} payouts retried, ${r.holdsReleased} holds released.`,
   );
 }
 

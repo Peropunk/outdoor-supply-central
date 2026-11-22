@@ -49,7 +49,7 @@ export default async function AdminSettingsPage(props: PageProps<"/admin/setting
         <h2 className="text-xl">Shipping rules</h2>
         <p>
           Sellers have {SHIP_BY_DAYS} days to ship, with a reminder on day {SHIP_REMINDER_DAY}. After that the order is
-          refunded and the item relisted.
+          refunded and the listing paused.
         </p>
         <p className="text-[14px] text-muted">
           Changing these needs a small code update, because the help pages and emails quote them.

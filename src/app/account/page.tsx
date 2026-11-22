@@ -51,6 +51,14 @@ export default async function AccountPage(props: PageProps<"/account">) {
         </p>
       )}
 
+      {(sp.error === "address" || sp.error === "usps") && (
+        <p role="alert" className="mb-6 rounded-md border border-alert/30 bg-alert/5 p-4 font-semibold text-alert">
+          {sp.error === "usps"
+            ? "Nothing was saved. USPS can't find that ship-from address. Check the street, city, state and ZIP code."
+            : "Nothing was saved. Fill in the whole ship-from address (street, city, a US state and a 5-digit ZIP), or leave it blank."}
+        </p>
+      )}
+
       {sp.error === "phone" && (
         <p role="alert" className="mb-6 rounded-md border border-alert/30 bg-alert/5 p-4 font-semibold text-alert">
           Nothing was saved. Enter a real 10-digit US phone number, or leave it blank.

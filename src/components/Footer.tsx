@@ -44,6 +44,7 @@ export function Footer() {
             <p className="label-caps text-sm text-white/70">Help</p>
             <ul className="mt-3 space-y-2">
               {[
+                ["/about", "About us"],
                 ["/help/how-to-sell", "How to sell in 5 steps"],
                 ["/help/fees", "Fees"],
                 ["/help/shipping", "Shipping rules"],
