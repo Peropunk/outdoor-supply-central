@@ -17,6 +17,7 @@ type Row = {
   status: OrderStatus | "pending_payment";
   item_cents: number;
   shipping_cents: number;
+  tax_cents: number;
   commission_cents: number;
   ship_to: { name?: string; city?: string; state?: string } | null;
   tracking_number: string | null;
@@ -30,7 +31,7 @@ type Row = {
 };
 
 const COLUMNS =
-  "id, number, listing_id, buyer_id, seller_id, status, item_cents, shipping_cents, commission_cents, ship_to, tracking_number, paid_at, ship_by, label_ready_at, shipped_at, delivered_at, refunded_at, created_at";
+  "id, number, listing_id, buyer_id, seller_id, status, item_cents, shipping_cents, tax_cents, commission_cents, ship_to, tracking_number, paid_at, ship_by, label_ready_at, shipped_at, delivered_at, refunded_at, created_at";
 
 export type OrderView = { order: Order; listing: Listing; role: "buyer" | "seller" };
 
@@ -47,6 +48,7 @@ function toOrder(r: Row, sellerPaidAt?: string): Order {
     status: r.status === "pending_payment" ? "paid" : r.status,
     itemCents: r.item_cents,
     shippingCents: r.shipping_cents,
+    taxCents: r.tax_cents ?? 0,
     commissionCents: r.commission_cents,
     paidAt: r.paid_at ?? r.created_at,
     shipBy: r.ship_by ?? r.created_at,

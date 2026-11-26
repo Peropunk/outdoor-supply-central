@@ -70,7 +70,7 @@ export function getCondition(id: ConditionId) {
   return CONDITIONS.find((c) => c.id === id)!;
 }
 
-export type PackageSizeId = "small" | "medium" | "large" | "xlarge";
+export type PackageSizeId = "small" | "medium" | "large" | "xlarge" | "oversized";
 
 // Decision 6 default: seller picks a package size when listing; the buyer pays
 // the live USPS rate at checkout. Box limits come from the Shippo test: USPS
@@ -115,6 +115,15 @@ export const PACKAGE_SIZES: {
     box: { length: 18, width: 14, height: 10 },
     examples: "Tent, packed backpacking pack",
     estimateCents: 3000,
+  },
+  {
+    // USPS prices a box this size by its dimensions (about 31 lb), so shipping is costly whatever it weighs.
+    id: "oversized",
+    label: "Oversized",
+    maxWeightLb: 30,
+    box: { length: 24, width: 18, height: 12 },
+    examples: "Camp chair, large cooler, big tent, bundled gear",
+    estimateCents: 13500,
   },
 ];
 

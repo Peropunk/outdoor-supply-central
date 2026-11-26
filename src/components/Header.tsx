@@ -9,8 +9,9 @@ export const NAV = [
   { href: "/browse", label: "Shop" },
   { href: "/sell", label: "Sell your gear" },
   { href: "/help/how-to-sell", label: "How it works" },
-  { href: "/help", label: "Help" },
+  { href: "/faq", label: "FAQ" },
   { href: "/about", label: "About us" },
+  { href: "/help", label: "Help" },
 ];
 
 export function Header() {
@@ -28,12 +29,13 @@ export function Header() {
           />
         </Link>
 
-        <nav className="ml-auto hidden items-center gap-7 md:flex" aria-label="Main">
-          {NAV.slice(0, 3).map((item) => (
+        {/* Shop, Sell, How it works from tablet width; FAQ and About us join them on wider screens. */}
+        <nav className="ml-auto hidden items-center gap-6 md:flex xl:gap-7" aria-label="Main">
+          {NAV.slice(0, 5).map((item, i) => (
             <Link
               key={item.href}
               href={item.href}
-              className="label-caps text-[14px] text-ink no-underline hover:text-pine"
+              className={`label-caps text-[14px] whitespace-nowrap text-ink no-underline hover:text-pine ${i >= 3 ? "hidden lg:inline" : ""}`}
             >
               {item.label}
             </Link>

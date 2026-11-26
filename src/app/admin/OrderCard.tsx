@@ -7,7 +7,7 @@ import { adminRefund, adminRetryLabel, adminSimulateTracking } from "./actions";
 import { SITE_TIME_ZONE } from "@/lib/time";
 
 export const ORDER_COLUMNS =
-  "id, number, status, item_cents, shipping_cents, commission_cents, seller_share_cents, ship_to, tracking_number, tracking_status, paid_at, ship_by, created_at, listing_id, buyer_id, seller_id, listings(title), seller:profiles!orders_seller_id_fkey(display_name), payouts(status), order_messages(count)";
+  "id, number, status, item_cents, shipping_cents, tax_cents, commission_cents, seller_share_cents, ship_to, tracking_number, tracking_status, paid_at, ship_by, created_at, listing_id, buyer_id, seller_id, listings(title), seller:profiles!orders_seller_id_fkey(display_name), payouts(status), order_messages(count)";
 
 export type AdminOrder = {
   id: string;
@@ -15,6 +15,7 @@ export type AdminOrder = {
   status: string;
   item_cents: number;
   shipping_cents: number;
+  tax_cents: number;
   commission_cents: number;
   seller_share_cents: number;
   ship_to: { name?: string; city?: string; state?: string; email?: string } | null;
@@ -97,7 +98,7 @@ export function OrderCard({ o, back, link = true }: { o: AdminOrder; back: strin
         <Pair label="Seller" value={o.seller?.display_name || "Seller"} />
         <Pair
           label="Paid"
-          value={`${formatUSD(o.item_cents + o.shipping_cents)}${o.paid_at ? ` · ${dateFmt.format(new Date(o.paid_at))}` : ""}`}
+          value={`${formatUSD(o.item_cents + o.shipping_cents + (o.tax_cents ?? 0))}${o.tax_cents ? ` (incl. ${formatUSD(o.tax_cents)} TX tax)` : ""}${o.paid_at ? ` · ${dateFmt.format(new Date(o.paid_at))}` : ""}`}
         />
         <Pair label="Ship by" value={o.ship_by ? dateFmt.format(new Date(o.ship_by)) : "—"} />
         <Pair label="Commission" value={formatUSD(o.commission_cents)} />
@@ -144,7 +145,7 @@ export function OrderCard({ o, back, link = true }: { o: AdminOrder; back: strin
             >
               <input type="hidden" name="back" value={back} />
               <p className="text-[15px]">
-                Refund {formatUSD(o.item_cents + o.shipping_cents)} to the buyer?{" "}
+                Refund {formatUSD(o.item_cents + o.shipping_cents + (o.tax_cents ?? 0))} to the buyer?{" "}
                 {unshipped
                   ? "The label is voided and the item goes back on sale."
                   : payout === "transferred"

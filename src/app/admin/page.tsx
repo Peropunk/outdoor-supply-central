@@ -5,6 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 import { formatUSD } from "@/lib/money";
 import { isShippoTest } from "@/lib/shippo";
 import { createAdminClient } from "@/lib/supabase/server";
+import { salesByState } from "@/lib/nexus";
 import { monthKey } from "@/lib/time";
 import { adminRunSweep } from "./actions";
 import { AdminNav } from "./AdminNav";
@@ -62,16 +63,17 @@ async function findOrders(q: string): Promise<AdminOrder[]> {
 async function commissionByMonth() {
   const { data } = await createAdminClient()
     .from("orders")
-    .select("paid_at, item_cents, commission_cents")
+    .select("paid_at, item_cents, commission_cents, tax_cents")
     .in("status", ["paid", "label_ready", "shipped", "delivered"])
     .not("paid_at", "is", null);
-  const months = new Map<string, { orders: number; sales: number; commission: number }>();
+  const months = new Map<string, { orders: number; sales: number; commission: number; tax: number }>();
   for (const o of data ?? []) {
     const key = monthKey(o.paid_at as string);
-    const m = months.get(key) ?? { orders: 0, sales: 0, commission: 0 };
+    const m = months.get(key) ?? { orders: 0, sales: 0, commission: 0, tax: 0 };
     m.orders++;
     m.sales += o.item_cents as number;
     m.commission += o.commission_cents as number;
+    m.tax += (o.tax_cents as number) ?? 0;
     months.set(key, m);
   }
   return [...months.entries()].sort(([a], [b]) => b.localeCompare(a)).slice(0, 12);
@@ -81,7 +83,7 @@ export default async function AdminOrdersPage(props: PageProps<"/admin">) {
   await requireAdmin();
   const sp = await props.searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 100) : "";
-  const [orders, months] = await Promise.all([findOrders(q), commissionByMonth()]);
+  const [orders, months, states] = await Promise.all([findOrders(q), commissionByMonth(), salesByState()]);
   const backTo = q ? `/admin?q=${encodeURIComponent(q)}` : "/admin";
 
   return (
@@ -98,6 +100,7 @@ export default async function AdminOrdersPage(props: PageProps<"/admin">) {
                 <th className="py-1 text-right font-normal">Orders</th>
                 <th className="py-1 text-right font-normal">Item sales</th>
                 <th className="py-1 text-right font-normal">Commission</th>
+                <th className="py-1 text-right font-normal">TX tax</th>
               </tr>
             </thead>
             <tbody>
@@ -107,6 +110,7 @@ export default async function AdminOrdersPage(props: PageProps<"/admin">) {
                   <td className="py-1.5 text-right">{m.orders}</td>
                   <td className="py-1.5 text-right">{formatUSD(m.sales)}</td>
                   <td className="py-1.5 text-right font-semibold">{formatUSD(m.commission)}</td>
+                  <td className="py-1.5 text-right">{formatUSD(m.tax)}</td>
                 </tr>
               ))}
             </tbody>
@@ -115,8 +119,44 @@ export default async function AdminOrdersPage(props: PageProps<"/admin">) {
           <p className="mt-2 text-muted">No paid orders yet.</p>
         )}
         <p className="mt-3 text-[14px] text-muted">
-          Refunded orders are left out. Card fees come out of the commission.
+          Months follow US Central time. Refunded orders are left out. Card fees come out of the commission. TX tax is
+          the Texas sales tax collected, to file with the state.
         </p>
+      </Card>
+
+      <Card className="mt-4">
+        <h2 className="text-xl">Sales by state this year</h2>
+        <p className="mt-1 text-[14px] text-muted">
+          Most states require sales tax once sales into them pass $100,000 or 200 orders a year (some set higher). A
+          state is flagged at 80% of that, and admins get an email the first time. Ask your accountant before
+          registering.
+        </p>
+        {states.length ? (
+          <table className="mt-3 w-full text-left text-[15px]">
+            <thead className="text-muted">
+              <tr>
+                <th className="py-1 font-normal">State</th>
+                <th className="py-1 text-right font-normal">Orders</th>
+                <th className="py-1 text-right font-normal">Sales (item + shipping)</th>
+                <th className="py-1 text-right font-normal">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {states.map((s) => (
+                <tr key={s.state} className="border-t border-line">
+                  <td className="py-1.5">{s.state}</td>
+                  <td className="py-1.5 text-right">{s.orders}</td>
+                  <td className="py-1.5 text-right">{formatUSD(s.grossCents)}</td>
+                  <td className={`py-1.5 text-right ${s.near ? "font-semibold text-alert" : "text-muted"}`}>
+                    {s.collecting ? "Collecting tax" : s.near ? "Near threshold" : "Below"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p className="mt-2 text-muted">No paid orders this year yet.</p>
+        )}
       </Card>
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

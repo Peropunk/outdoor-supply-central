@@ -8,14 +8,16 @@ import { LISTINGS_TAG } from "@/lib/listings-db";
 import { commissionFor } from "@/lib/money";
 import { cancelUnpaidOrder, commissionRate, holdListing, HOLD_MINUTES, releaseExpiredHold } from "@/lib/orders-server";
 import { cheapestUspsRate, isDeliverable, isShippoConfigured, type ShippoAddress, type UspsRate } from "@/lib/shippo";
-import { getStripe, isStripeConfigured } from "@/lib/stripe";
+import { getStripe, isStripeConfigured, texasTaxRateId } from "@/lib/stripe";
+import { salesTaxCents } from "@/lib/tax";
 import { isRestrictedRegion, RESTRICTED_MESSAGE } from "@/lib/restricted-regions";
 import { createAdminClient } from "@/lib/supabase/server";
 
 export type ShipTo = { name: string; line1: string; line2: string; city: string; state: string; zip: string };
 
 export type QuoteResult =
-  { ok: true; shippingCents: number; service: string; estimatedDays: number | null } | { ok: false; error: string };
+  | { ok: true; shippingCents: number; taxCents: number; service: string; estimatedDays: number | null }
+  | { ok: false; error: string };
 
 export type CheckoutResult = { ok: true; url: string } | { ok: false; error: string };
 
@@ -117,6 +119,7 @@ export async function quoteShipping(listingId: string, shipTo: ShipTo): Promise<
     return {
       ok: true,
       shippingCents: sale.rate.amountCents,
+      taxCents: salesTaxCents(sale.to.state, sale.listing.priceCents, sale.rate.amountCents),
       service: sale.rate.service,
       estimatedDays: sale.rate.estimatedDays,
     };
@@ -161,6 +164,8 @@ export async function startCheckout(listingId: string, shipTo: ShipTo): Promise<
       shipping_cents: sale.rate.amountCents,
       commission_rate: rate,
       commission_cents: commissionFor(sale.listing.priceCents, rate),
+      // Expected tax; the Stripe webhook records the exact amount charged.
+      tax_cents: salesTaxCents(sale.to.state, sale.listing.priceCents, sale.rate.amountCents),
       ship_to: {
         name: sale.to.name,
         line1: sale.to.street1,
@@ -182,6 +187,8 @@ export async function startCheckout(listingId: string, shipTo: ShipTo): Promise<
 
   const origin = (await headers()).get("origin") ?? process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   try {
+    // Texas orders: 8.25% sales tax on the item and the shipping (see lib/tax.ts).
+    const taxRates = sale.to.state === "TX" ? [await texasTaxRateId()] : undefined;
     const session = await getStripe().checkout.sessions.create(
       {
         mode: "payment",
@@ -211,6 +218,7 @@ export async function startCheckout(listingId: string, shipTo: ShipTo): Promise<
               unit_amount: sale.listing.priceCents,
               product_data: { name: sale.listing.title },
             },
+            tax_rates: taxRates,
           },
           {
             quantity: 1,
@@ -219,6 +227,7 @@ export async function startCheckout(listingId: string, shipTo: ShipTo): Promise<
               unit_amount: sale.rate.amountCents,
               product_data: { name: `USPS ${sale.rate.service} shipping` },
             },
+            tax_rates: taxRates,
           },
         ],
         // The seller's share is transferred from this payment after USPS's first scan (Chunk 5).

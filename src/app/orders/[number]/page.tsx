@@ -42,7 +42,7 @@ export default async function OrderPage(props: PageProps<"/orders/[number]">) {
   const { order, listing } = found;
   const asSeller = "role" in found ? found.role === "seller" : sp.view === "seller";
   const step = currentStepIndex(order.status);
-  const total = order.itemCents + order.shippingCents;
+  const total = order.itemCents + order.shippingCents + (order.taxCents ?? 0);
 
   return (
     <div className="mx-auto max-w-3xl px-4 pt-8">
@@ -192,6 +192,7 @@ export default async function OrderPage(props: PageProps<"/orders/[number]">) {
             <>
               <Row label="Item" value={formatUSD(order.itemCents)} />
               <Row label="USPS shipping" value={formatUSD(order.shippingCents)} />
+              {Boolean(order.taxCents) && <Row label="Texas sales tax" value={formatUSD(order.taxCents ?? 0)} />}
               <Row label="Total paid" value={formatUSD(total)} strong />
             </>
           )}

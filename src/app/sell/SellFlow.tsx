@@ -408,7 +408,9 @@ function DetailsStep({ draft, update }: StepProps) {
             className={inputClass}
           >
             <option value="">{category ? "Choose…" : "Pick a category first"}</option>
-            {category?.subcategories.map((s) => <option key={s}>{s}</option>)}
+            {category?.subcategories.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
           </select>
         </Field>
       </div>
@@ -525,6 +527,12 @@ function PriceStep({ draft, update, rate }: StepProps & { rate: number }) {
             </label>
           ))}
         </div>
+        {draft.packageSize === "oversized" && (
+          <p className="mt-2 text-[14px] font-semibold text-boot">
+            USPS prices a box this big by its size, so buyers pay a lot for shipping. If your packed item fits a smaller
+            size, choose that instead.
+          </p>
+        )}
       </fieldset>
     </>
   );

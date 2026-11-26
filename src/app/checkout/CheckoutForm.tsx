@@ -7,8 +7,8 @@ import { StreetAddressInput } from "@/components/StreetAddressInput";
 import { Card, Field, PreviewNotice, buttonClass, inputClass } from "@/components/ui";
 import { US_STATES } from "@/lib/catalog";
 import { formatUSD } from "@/lib/money";
+import { TEXAS_TAX_RATE } from "@/lib/tax";
 import { quoteShipping, startCheckout, type QuoteResult, type ShipTo } from "./actions";
-
 
 type Quote = Extract<QuoteResult, { ok: true }>;
 
@@ -87,7 +87,8 @@ export function CheckoutForm({
   }
 
   const shippingCents = live ? quote?.shippingCents : estimateCents;
-  const totalCents = shippingCents == null ? null : priceCents + shippingCents;
+  const taxCents = live ? (quote?.taxCents ?? 0) : 0;
+  const totalCents = shippingCents == null ? null : priceCents + shippingCents + taxCents;
 
   const action = !live ? (
     <Link href="/orders/OSC-10491?new=1" className={buttonClass("primary", "w-full")}>
@@ -190,6 +191,18 @@ export function CheckoutForm({
               />
             </Field>
           </div>
+          {/* The only destination: shown as a list of one, so the restriction is visible (Stripe asked to see it). */}
+          <Field label="Country" htmlFor="country" hint="We ship within the United States only (50 states and DC).">
+            <select
+              id="country"
+              name="country"
+              autoComplete="shipping country"
+              defaultValue="US"
+              className={inputClass}
+            >
+              <option value="US">United States</option>
+            </select>
+          </Field>
         </Card>
 
         {error && (
@@ -235,6 +248,12 @@ export function CheckoutForm({
                 {shippingCents == null ? "Add your address" : formatUSD(shippingCents)}
               </dd>
             </div>
+            {taxCents > 0 && (
+              <div className="flex justify-between gap-4">
+                <dt>Texas sales tax ({Math.round(TEXAS_TAX_RATE * 10_000) / 100}%)</dt>
+                <dd>{formatUSD(taxCents)}</dd>
+              </div>
+            )}
             <div className="flex justify-between border-t border-line pt-2 text-lg font-bold">
               <dt>Total</dt>
               <dd>{totalCents == null ? "—" : formatUSD(totalCents)}</dd>

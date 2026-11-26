@@ -8,6 +8,7 @@ import { releaseExpiredHold } from "./orders-server";
 import { buyLabel, isShippoConfigured, latestTracking, voidLabel } from "./shippo";
 import { siteUrl } from "./site";
 import { getStripe, isStripeConfigured } from "./stripe";
+import { warnNearThresholds } from "./nexus";
 import { uspsTrackingUrl } from "./tracking";
 import { createAdminClient } from "./supabase/server";
 import { SITE_TIME_ZONE } from "./time";
@@ -19,7 +20,7 @@ import { SITE_TIME_ZONE } from "./time";
 // daily job and an admin click can't do the same thing twice.
 
 const FIELDS =
-  "id, number, status, listing_id, buyer_id, seller_id, item_cents, shipping_cents, commission_cents, seller_share_cents, ship_to, stripe_payment_intent_id, stripe_charge_id, shippo_transaction_id, tracking_number, paid_at, ship_by";
+  "id, number, status, listing_id, buyer_id, seller_id, item_cents, shipping_cents, tax_cents, commission_cents, seller_share_cents, ship_to, stripe_payment_intent_id, stripe_charge_id, shippo_transaction_id, tracking_number, paid_at, ship_by";
 
 type OrderRow = {
   id: string;
@@ -30,6 +31,7 @@ type OrderRow = {
   seller_id: string;
   item_cents: number;
   shipping_cents: number;
+  tax_cents: number;
   commission_cents: number;
   seller_share_cents: number;
   ship_to: { name: string; line1: string; line2?: string; city: string; state: string; zip: string; email?: string };
@@ -415,7 +417,7 @@ export async function refundOrder(orderId: string, reason: RefundReason): Promis
     order.ship_to.email ? Promise.resolve(order.ship_to.email) : emailOf(order.buyer_id),
     emailOf(order.seller_id),
   ]);
-  const total = formatUSD(order.item_cents + order.shipping_cents);
+  const total = formatUSD(order.item_cents + order.shipping_cents + (order.tax_cents ?? 0));
   await Promise.all([
     buyerEmail &&
       sendEmail({
@@ -468,6 +470,8 @@ export type SweepReport = {
   lateScans: number;
   labelsRetried: number;
   payoutsRetried: number;
+  /** States newly flagged as nearing a sales-tax threshold. */
+  taxWarnings: number;
 };
 
 /**
@@ -481,6 +485,7 @@ export async function runOrderSweep(now = new Date()): Promise<SweepReport> {
     reminders: 0,
     cancelled: 0,
     lateScans: 0,
+    taxWarnings: 0,
     labelsRetried: 0,
     payoutsRetried: 0,
   };
@@ -581,6 +586,9 @@ export async function runOrderSweep(now = new Date()): Promise<SweepReport> {
     if (status === "transferred" || status === "reversed") continue;
     if (await paySeller(o.id, true)) report.payoutsRetried++;
   }
+
+  // Early warning when sales into a state near its sales-tax threshold (lib/nexus.ts).
+  report.taxWarnings = await warnNearThresholds().catch(() => 0);
 
   return report;
 }

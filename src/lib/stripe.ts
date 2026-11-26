@@ -49,3 +49,36 @@ export async function canReceiveTransfers(accountId: string) {
   const account = await getStripe().v2.core.accounts.retrieve(accountId, { include: ["configuration.recipient"] });
   return account.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers?.status === "active";
 }
+
+let texasRateId: string | undefined;
+
+/**
+ * The Texas 8.25% sales tax rate in this Stripe account, found by its metadata
+ * or created on first use (sandbox and live each get their own). Checkout
+ * applies it to Texas orders, so Stripe's tax reports show what was collected.
+ */
+export async function texasTaxRateId() {
+  if (texasRateId) return texasRateId;
+  const stripe = getStripe();
+  const existing = await stripe.taxRates.list({ active: true, limit: 100 });
+  const found = existing.data.find((r) => r.metadata?.osc === "texas-sales-tax" && r.percentage === 8.25);
+  texasRateId =
+    found?.id ??
+    (
+      await stripe.taxRates.create(
+        {
+          display_name: "Texas sales tax",
+          description: "Texas sales and use tax, 8.25%",
+          percentage: 8.25,
+          inclusive: false,
+          country: "US",
+          state: "TX",
+          jurisdiction: "US-TX",
+          tax_type: "sales_tax",
+          metadata: { osc: "texas-sales-tax" },
+        },
+        { idempotencyKey: "osc-texas-sales-tax-8.25" },
+      )
+    ).id;
+  return texasRateId;
+}

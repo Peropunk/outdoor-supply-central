@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { BANNED_ITEMS, CONDITIONS, PACKAGE_SIZES, SHIP_BY_DAYS, SHIP_REMINDER_DAY, boxLabel } from "@/lib/catalog";
 import { formatUSD, sellerEarnings } from "@/lib/money";
+import { TEXAS_TAX_RATE } from "@/lib/tax";
 import { getCommissionRate } from "@/lib/settings";
 
 // Help and policy pages (Chunk 6). Wording follows the open-decision defaults
@@ -93,7 +94,8 @@ function buildHelpPages(rate: number): HelpPage[] {
           <p>
             Find something you like, tap <strong>Buy now</strong> and enter your shipping address. You see the exact
             USPS cost before you pay, and you pay once for the item and shipping together, by card or Apple Pay or
-            Google Pay, through Stripe.
+            Google Pay, through Stripe. We ship within the United States only. Orders shipped to Texas include Texas
+            sales tax ({Math.round(TEXAS_TAX_RATE * 10_000) / 100}%) on the item and shipping, shown before you pay.
           </p>
           <Section title="Your money is protected">
             <p>
@@ -136,6 +138,11 @@ function buildHelpPages(rate: number): HelpPage[] {
             schedule, usually within 2 business days. See your payouts in your{" "}
             <Link href="/dashboard?tab=payouts">dashboard</Link>.
           </p>
+          <p>
+            If an order is refunded in full, the buyer gets everything back and we don&apos;t keep our fee; you&apos;re
+            not paid for that order. If USPS charges extra because a package was heavier or bigger than its label, you
+            pay that charge.
+          </p>
         </>
       ),
     },
@@ -165,7 +172,9 @@ function buildHelpPages(rate: number): HelpPage[] {
           <Section title="Package sizes">
             <p>
               Pick the size when you list. The label is bought for that size and weight, so pack the item in a box no
-              bigger than it. USPS may charge extra for a package that&apos;s bigger or heavier than its label.
+              bigger than it. If USPS charges extra because the package is bigger or heavier than its label, the seller
+              pays that charge. Big gear can use the Oversized size; USPS prices boxes that big by their dimensions, so
+              shipping costs more.
             </p>
             <ul className="list-disc space-y-1 pl-6">
               {PACKAGE_SIZES.map((p) => (

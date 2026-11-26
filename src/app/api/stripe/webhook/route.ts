@@ -65,10 +65,14 @@ async function markPaid(orderId: string, session: Stripe.Checkout.Session) {
       paid_at: paidAt.toISOString(),
       ship_by: shipBy.toISOString(),
       stripe_payment_intent_id: paymentIntentId ?? null,
+      // The sales tax Stripe actually charged (Texas orders), for filing and refunds.
+      ...(typeof session.total_details?.amount_tax === "number" ? { tax_cents: session.total_details.amount_tax } : {}),
     })
     .eq("id", orderId)
     .eq("status", "pending_payment")
-    .select("id, number, listing_id, buyer_id, seller_id, item_cents, shipping_cents, commission_cents, ship_to")
+    .select(
+      "id, number, listing_id, buyer_id, seller_id, item_cents, shipping_cents, tax_cents, commission_cents, ship_to",
+    )
     .single();
   if (!data) return false; // already handled, or cancelled before payment
 
@@ -106,7 +110,8 @@ async function markPaid(orderId: string, session: Stripe.Checkout.Session) {
         ``,
         `Item: ${formatUSD(data.item_cents)}`,
         `USPS shipping: ${formatUSD(data.shipping_cents)}`,
-        `Total paid: ${formatUSD(data.item_cents + data.shipping_cents)}`,
+        ...(data.tax_cents ? [`Texas sales tax: ${formatUSD(data.tax_cents)}`] : []),
+        `Total paid: ${formatUSD(data.item_cents + data.shipping_cents + (data.tax_cents ?? 0))}`,
         ``,
         `The seller has until ${shipByText} to ship it. We'll email you when it's on its way.`,
         `If it doesn't ship in time, you get a full refund automatically.`,

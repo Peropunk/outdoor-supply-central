@@ -1,7 +1,7 @@
 // One time zone for every date on the site and in emails. Servers run in UTC,
 // so without this a buyer in New York who pays at 9 pm would see tomorrow's
-// date. US Eastern until JD confirms his own.
-export const SITE_TIME_ZONE = "America/New_York";
+// date. US Central: JD's time zone (confirmed Nov 2026).
+export const SITE_TIME_ZONE = "America/Chicago";
 
 /** "2026-11" for the calendar month a moment falls in, in the site's time zone. */
 export function monthKey(iso: string) {

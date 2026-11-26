@@ -17,6 +17,8 @@ export type Order = {
   status: OrderStatus;
   itemCents: number;
   shippingCents: number;
+  /** Sales tax charged (Texas orders); 0 elsewhere. */
+  taxCents?: number;
   commissionCents: number;
   paidAt: string;
   shipBy: string;
