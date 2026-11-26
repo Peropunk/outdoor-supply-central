@@ -4,10 +4,11 @@ import { BANNED_ITEMS, CONDITIONS, PACKAGE_SIZES, SHIP_BY_DAYS, SHIP_REMINDER_DA
 import { formatUSD, sellerEarnings } from "@/lib/money";
 import { TEXAS_TAX_RATE } from "@/lib/tax";
 import { getCommissionRate } from "@/lib/settings";
+import { privacyBody, termsBody } from "./legal";
 
-// Help and policy pages (Chunk 6). Wording follows the open-decision defaults
-// and needs JD's review; terms and privacy need his lawyer's review too. The
-// commission comes from the admin setting, so the Fees page always matches.
+// Help and policy pages (Chunk 6). Terms and privacy are JD's final text, in
+// legal.tsx. The commission comes from the admin setting, so the Fees page and
+// the terms always match.
 
 export type HelpPage = { slug: string; title: string; summary: string; body: ReactNode };
 
@@ -22,15 +23,6 @@ export const HELP_SLUGS = [
   "terms",
   "privacy",
 ] as const;
-
-function DraftNote() {
-  return (
-    <p className="rounded-md border border-dashed border-boot/50 bg-sand px-4 py-2.5 text-[14px]">
-      <strong>Draft for legal review.</strong> This text follows how the site works today. Outdoor Central, LLC and its
-      lawyer should review it before launch.
-    </p>
-  );
-}
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -257,146 +249,14 @@ function buildHelpPages(rate: number): HelpPage[] {
     {
       slug: "terms",
       title: "Terms of use",
-      summary: "The rules for buying and selling on Outdoor Supply Central.",
-      body: (
-        <>
-          <DraftNote />
-          <Section title="Who we are">
-            <p>
-              Outdoor Supply Central is run by Outdoor Central, LLC (“we”, “us”). It&apos;s a marketplace where people
-              sell pre-owned outdoor gear to each other. We aren&apos;t the seller of items listed by members, and we
-              don&apos;t own or inspect them.
-            </p>
-          </Section>
-          <Section title="Your account">
-            <p>
-              You need an account to buy or sell, and you must be at least 18 and in the United States. Keep your email
-              account secure: we sign you in with links sent to it. You&apos;re responsible for what happens on your
-              account.
-            </p>
-          </Section>
-          <Section title="Selling">
-            <ul className="list-disc space-y-1 pl-6">
-              <li>Only list gear you own and can ship from the US, described honestly, with real photos.</li>
-              <li>
-                No <Link href="/help/banned-items">banned items</Link>. Grade the condition fairly and note every flaw.
-              </li>
-              <li>
-                Set up payouts with Stripe before your first listing. Stripe&apos;s own terms apply to your Stripe
-                account.
-              </li>
-              <li>
-                Ship with the label we provide within {SHIP_BY_DAYS} days of the sale, in a box no bigger than the
-                package size you chose.
-              </li>
-            </ul>
-          </Section>
-          <Section title="Buying">
-            <p>
-              The price you see plus the USPS shipping shown at checkout is what you pay. Payment is taken by Stripe
-              when you order. Sales are final except as described in{" "}
-              <Link href="/help/returns">returns and problems</Link>.
-            </p>
-          </Section>
-          <Section title="Payments and fees">
-            <p>
-              We collect the buyer&apos;s payment and hold it until USPS scans the package, then pay the seller their
-              share minus our fee (see <Link href="/help/fees">fees</Link>). If an order isn&apos;t shipped in time, we
-              refund the buyer in full and the seller isn&apos;t paid. If we refund an order after the seller was paid,
-              we may take the seller&apos;s share back from their Stripe balance.
-            </p>
-          </Section>
-          <Section title="Problems and our decisions">
-            <p>
-              If something goes wrong with an order, use <strong>Report a problem</strong>. We look at what both sides
-              send and decide whether to refund. Our decision on refunds through the site is final, though it
-              doesn&apos;t limit any rights you have by law.
-            </p>
-          </Section>
-          <Section title="Things you mustn't do">
-            <ul className="list-disc space-y-1 pl-6">
-              <li>Arrange payment or delivery outside the site for an item found here.</li>
-              <li>List counterfeit, stolen or misdescribed items, or post misleading photos.</li>
-              <li>Harass other members, or use the site to collect their details.</li>
-              <li>Interfere with the site or try to get around its rules.</li>
-            </ul>
-            <p>
-              We may remove listings and suspend or close accounts that break these terms. Orders already paid are still
-              shipped or refunded.
-            </p>
-          </Section>
-          <Section title="Liability">
-            <p>
-              The site is provided as it is. To the extent the law allows, we aren&apos;t liable for the condition,
-              safety or legality of items members list, or for indirect losses. Outdoor gear can be dangerous if
-              it&apos;s worn or damaged: check pre-owned gear before you rely on it.
-            </p>
-          </Section>
-          <Section title="Changes and contact">
-            <p>
-              We may update these terms and will note the date at the top when we do. Questions? Reply to any email from
-              us.
-            </p>
-          </Section>
-        </>
-      ),
+      summary: "The agreement for buying and selling on Outdoor Supply Central.",
+      body: termsBody(rate),
     },
     {
       slug: "privacy",
       title: "Privacy policy",
       summary: "What we collect, who sees it, and your choices.",
-      body: (
-        <>
-          <DraftNote />
-          <Section title="What we collect">
-            <ul className="list-disc space-y-1 pl-6">
-              <li>Your email address, display name, city and state, and the answers to our three welcome questions.</li>
-              <li>For sellers: your ship-from address and phone number, which USPS needs for labels.</li>
-              <li>For buyers: the shipping address you enter at checkout.</li>
-              <li>Your listings and photos, orders, and messages in problem threads.</li>
-            </ul>
-          </Section>
-          <Section title="What we never see">
-            <p>
-              Card numbers and bank details. Payments and payouts are handled by Stripe, which collects them directly.
-            </p>
-          </Section>
-          <Section title="Who sees what">
-            <ul className="list-disc space-y-1 pl-6">
-              <li>Other members see your display name and city on your listings, never your address.</li>
-              <li>
-                A seller sees the buyer&apos;s name and shipping address on the label. The buyer sees the seller&apos;s
-                display name and city only.
-              </li>
-              <li>Problem threads are seen by the buyer, the seller and us.</li>
-            </ul>
-          </Section>
-          <Section title="Services we use">
-            <p>We share only what each one needs to do its job:</p>
-            <ul className="list-disc space-y-1 pl-6">
-              <li>Stripe: payments, seller identity checks and payouts.</li>
-              <li>Shippo and USPS: shipping rates, labels and tracking (names, addresses, phone and email).</li>
-              <li>Supabase and Vercel: secure hosting of the site and its data in the US.</li>
-              <li>Resend: sending order emails.</li>
-              <li>Geoapify: suggesting addresses as you type them (it receives the text you type in that field).</li>
-            </ul>
-            <p>We don&apos;t sell your information or use it for advertising.</p>
-          </Section>
-          <Section title="Cookies">
-            <p>We use cookies only to keep you signed in and to finish sign-in. There are no ad or tracking cookies.</p>
-          </Section>
-          <Section title="Your choices">
-            <p>
-              You can update your details or delete your account any time in{" "}
-              <Link href="/account">account settings</Link>. We keep order records as long as the law requires for tax
-              and accounting, even after an account is deleted.
-            </p>
-          </Section>
-          <Section title="Contact">
-            <p>Questions about your information? Reply to any email from us.</p>
-          </Section>
-        </>
-      ),
+      body: privacyBody(),
     },
   ];
 }
